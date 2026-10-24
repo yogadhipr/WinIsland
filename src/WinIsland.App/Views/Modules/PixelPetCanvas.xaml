@@ -1,0 +1,59 @@
+<UserControl x:Class="WinIsland.App.Views.Modules.PixelPetCanvas"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" 
+             d:DesignHeight="24" d:DesignWidth="32"
+             Cursor="Hand"
+             MouseLeftButtonDown="OnPetClicked"
+             SnapsToDevicePixels="True">
+    <Grid Width="28" Height="22" VerticalAlignment="Bottom" HorizontalAlignment="Center">
+        <!-- Floating Heart Emote on Click -->
+        <TextBlock x:Name="TxtHeart" Text="❤️" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Top"
+                   Margin="0,-8,0,0" Opacity="0">
+            <TextBlock.RenderTransform>
+                <TranslateTransform x:Name="HeartTransform" Y="0"/>
+            </TextBlock.RenderTransform>
+        </TextBlock>
+
+        <!-- Pixel Pet Body & Features Canvas (14x11 grid units, 2px per pixel) -->
+        <Canvas Width="28" Height="22" SnapsToDevicePixels="True">
+            <!-- Left Ear -->
+            <Rectangle Canvas.Left="4" Canvas.Top="2" Width="4" Height="4" Fill="#FF9F0A"/>
+            <Rectangle Canvas.Left="6" Canvas.Top="4" Width="2" Height="2" Fill="#FFD60A"/>
+
+            <!-- Right Ear -->
+            <Rectangle Canvas.Left="20" Canvas.Top="2" Width="4" Height="4" Fill="#FF9F0A"/>
+            <Rectangle Canvas.Left="20" Canvas.Top="4" Width="2" Height="2" Fill="#FFD60A"/>
+
+            <!-- Head Base -->
+            <Rectangle Canvas.Left="4" Canvas.Top="6" Width="20" Height="10" Fill="#FF9F0A"/>
+            <!-- Cheeks White Fur -->
+            <Rectangle Canvas.Left="4" Canvas.Top="12" Width="4" Height="4" Fill="#FFFFFF"/>
+            <Rectangle Canvas.Left="20" Canvas.Top="12" Width="4" Height="4" Fill="#FFFFFF"/>
+
+            <!-- Left Eye -->
+            <Rectangle x:Name="LeftEye" Canvas.Left="8" Canvas.Top="8" Width="3" Height="3" Fill="#1C1C1E"/>
+            <Rectangle x:Name="LeftEyeShine" Canvas.Left="8" Canvas.Top="8" Width="1" Height="1" Fill="#FFFFFF"/>
+
+            <!-- Right Eye -->
+            <Rectangle x:Name="RightEye" Canvas.Left="17" Canvas.Top="8" Width="3" Height="3" Fill="#1C1C1E"/>
+            <Rectangle x:Name="RightEyeShine" Canvas.Left="17" Canvas.Top="8" Width="1" Height="1" Fill="#FFFFFF"/>
+
+            <!-- Cute Nose -->
+            <Rectangle Canvas.Left="13" Canvas.Top="11" Width="2" Height="2" Fill="#FF375F"/>
+
+            <!-- Paws Peeking Over Island Rim -->
+            <Rectangle Canvas.Left="6" Canvas.Top="16" Width="4" Height="3" Fill="#FFFFFF"/>
+            <Rectangle Canvas.Left="18" Canvas.Top="16" Width="4" Height="3" Fill="#FFFFFF"/>
+
+            <!-- Wagging Tail (Right side) -->
+            <Rectangle x:Name="Tail" Canvas.Left="23" Canvas.Top="8" Width="4" Height="3" Fill="#FF9F0A">
+                <Rectangle.RenderTransform>
+                    <RotateTransform x:Name="TailRotation" Angle="0" CenterX="0" CenterY="3"/>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+        </Canvas>
+    </Grid>
+</UserControl>

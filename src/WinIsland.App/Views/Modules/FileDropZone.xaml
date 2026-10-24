@@ -1,0 +1,76 @@
+<UserControl x:Class="WinIsland.App.Views.Modules.FileDropZone"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" 
+             d:DesignHeight="100" d:DesignWidth="400"
+             AllowDrop="True"
+             DragEnter="OnFileDragEnter"
+             DragOver="OnFileDragOver"
+             Drop="OnFileDrop">
+    <Grid Margin="12,2,12,6">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Shelf Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,4">
+            <TextBlock Text="FILE TRANSIT SHELF (OLE DRAG &amp; DROP)" FontSize="10" FontWeight="Bold" Foreground="#636366" VerticalAlignment="Center"/>
+            <Button Command="{Binding ClearFilesCommand}" Content="Clear All" FontSize="10" Foreground="#8E8E93" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" Cursor="Hand"/>
+        </Grid>
+
+        <!-- Empty State Drop Target -->
+        <Border Grid.Row="1" Background="#141418" BorderBrush="#2C2C34" BorderThickness="1.5" CornerRadius="10"
+                Padding="8" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                Visibility="{Binding FileItems.Count, Converter={x:Null}}">
+            <Grid>
+                <!-- When no files are stored -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal"
+                            Visibility="{Binding FileItems.Count, Converter={x:Null}}">
+                    <Path Fill="#8E8E93" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"
+                          Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M13,13V18H11V13H8L12,9L16,13H13Z"/>
+                    <TextBlock Text="Drag and drop files here to hold or transit" FontSize="11" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- List of Stored Files -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalAlignment="Stretch">
+                    <ItemsControl ItemsSource="{Binding FileItems}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,8,0" Background="#1E1E24" BorderBrush="#383842" BorderThickness="1" CornerRadius="8"
+                                        Padding="8,4" VerticalAlignment="Center" Cursor="Hand" ToolTip="Click and drag out to copy to other apps"
+                                        PreviewMouseLeftButtonDown="OnFileCardMouseDown"
+                                        PreviewMouseMove="OnFileCardMouseMove">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <StackPanel VerticalAlignment="Center" MaxWidth="90">
+                                            <TextBlock Text="{Binding FileName}" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding FileSizeFormatted}" FontSize="9" Foreground="#8E8E93"/>
+                                        </StackPanel>
+                                        <Button Command="{Binding DataContext.RemoveFileItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Margin="6,0,0,0" Width="16" Height="16" Background="Transparent" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#2A2A32" CornerRadius="8">
+                                                        <TextBlock Text="×" FontSize="10" Foreground="#C7C7CC" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

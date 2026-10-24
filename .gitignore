@@ -1,0 +1,111 @@
+## ==========================================
+## .gitignore for WinIsland (.NET / WPF / C#)
+## ==========================================
+
+# ------------------------------------------
+# Build Results & Output Directories
+# ------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+publish/
+[Aa]pp[Pp]ackages/
+BundleArtifacts/
+out/
+
+# Architecture-specific build directories
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+
+# Intermediate build files
+*.obj
+*.pdb
+*.idb
+*.tlog
+*.ipch
+*.res
+*.cache
+*.ilk
+*.manifest
+*.meta
+[Bb]uild[Ll]og.*
+
+# ------------------------------------------
+# Visual Studio / Roslyn / MSBuild
+# ------------------------------------------
+.vs/
+Generated\ Files/
+*.suo
+*.user
+*.userosv
+*.userprefs
+*.sln.docstates
+*.DotSettings.user
+*_i.c
+*_p.c
+*_h.h
+*.hie
+
+# MSBuild temporary projects
+*_wpftmp.csproj
+
+# ------------------------------------------
+# IDE & Editors
+# ------------------------------------------
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains Rider & ReSharper
+.idea/
+_ReSharper*/
+*.ReSharper
+
+# ------------------------------------------
+# Testing & Code Coverage
+# ------------------------------------------
+[Tt]est[Rr]esult*/
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+
+# ------------------------------------------
+# NuGet Packages
+# ------------------------------------------
+packages/
+!packages/build/
+*.nupkg
+*.snupkg
+project.lock.json
+project.assets.json
+
+# ------------------------------------------
+# OS Generated Files
+# ------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS (if opened or cloned on macOS)
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ------------------------------------------
+# Crash Dumps & Diagnostic Logs
+# ------------------------------------------
+*.dmp
+*.crash
+*.stackdump
