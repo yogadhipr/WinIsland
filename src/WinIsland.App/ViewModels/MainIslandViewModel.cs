@@ -259,6 +259,16 @@ namespace WinIsland.App.ViewModels
             InitializeServices();
         }
 
+        public async Task SeekToProgressAsync(double ratio)
+        {
+            var track = MediaInfo;
+            if (track.Duration > TimeSpan.Zero)
+            {
+                var target = track.StartTime + TimeSpan.FromMilliseconds(track.Duration.TotalMilliseconds * Math.Clamp(ratio, 0.0, 1.0));
+                await MediaControlService.Instance.TrySeekAsync(target);
+            }
+        }
+
         private void InitializeServices()
         {
             // Media

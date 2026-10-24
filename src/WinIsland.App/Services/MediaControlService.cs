@@ -17,6 +17,12 @@ namespace WinIsland.App.Services
         public bool IsPlaying { get; set; }
         public ImageSource? Thumbnail { get; set; }
         public bool HasActiveSession { get; set; }
+        public TimeSpan Position { get; set; } = TimeSpan.Zero;
+        public TimeSpan StartTime { get; set; } = TimeSpan.Zero;
+        public TimeSpan EndTime { get; set; } = TimeSpan.Zero;
+        public TimeSpan Duration { get; set; } = TimeSpan.Zero;
+        public DateTimeOffset LastUpdatedTime { get; set; } = DateTimeOffset.MinValue;
+        public bool CanSeek { get; set; }
     }
 
     public class MediaControlService
@@ -60,6 +66,7 @@ namespace WinIsland.App.Services
                 {
                     _currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
                     _currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                    _currentSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
                 }
 
                 _currentSession = _sessionManager?.GetCurrentSession();
@@ -68,6 +75,7 @@ namespace WinIsland.App.Services
                 {
                     _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;
                     _currentSession.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                    _currentSession.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
                     _ = RefreshMediaInfoAsync();
                 }
                 else
@@ -78,7 +86,13 @@ namespace WinIsland.App.Services
                         Artist = "Ready for playback",
                         IsPlaying = false,
                         HasActiveSession = false,
-                        Thumbnail = null
+                        Thumbnail = null,
+                        Position = TimeSpan.Zero,
+                        StartTime = TimeSpan.Zero,
+                        EndTime = TimeSpan.Zero,
+                        Duration = TimeSpan.Zero,
+                        LastUpdatedTime = DateTimeOffset.MinValue,
+                        CanSeek = false
                     };
                     NotifyTrackChanged();
                 }
@@ -99,6 +113,42 @@ namespace WinIsland.App.Services
             _ = RefreshMediaInfoAsync();
         }
 
+        private void OnTimelinePropertiesChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args)
+        {
+            _ = RefreshTimelineAsync();
+        }
+
+        public Task RefreshTimelineAsync()
+        {
+            if (_currentSession == null) return Task.CompletedTask;
+
+            try
+            {
+                var timeline = _currentSession.GetTimelineProperties();
+                if (timeline != null)
+                {
+                    CurrentTrack.Position = timeline.Position;
+                    CurrentTrack.StartTime = timeline.StartTime;
+                    CurrentTrack.EndTime = timeline.EndTime;
+                    CurrentTrack.Duration = timeline.EndTime >= timeline.StartTime
+                        ? (timeline.EndTime - timeline.StartTime)
+                        : TimeSpan.Zero;
+                    CurrentTrack.LastUpdatedTime = timeline.LastUpdatedTime != DateTimeOffset.MinValue
+                        ? timeline.LastUpdatedTime
+                        : DateTimeOffset.UtcNow;
+                    CurrentTrack.CanSeek = CurrentTrack.Duration > TimeSpan.Zero;
+
+                    NotifyTrackChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MediaControlService] Timeline error: {ex.Message}");
+            }
+
+            return Task.CompletedTask;
+        }
+
         public async Task RefreshMediaInfoAsync()
         {
             if (_currentSession == null) return;
@@ -107,6 +157,7 @@ namespace WinIsland.App.Services
             {
                 var mediaProps = await _currentSession.TryGetMediaPropertiesAsync();
                 var playbackInfo = _currentSession.GetPlaybackInfo();
+                var timeline = _currentSession.GetTimelineProperties();
 
                 string title = !string.IsNullOrWhiteSpace(mediaProps?.Title) ? mediaProps.Title : "Unknown Title";
                 string artist = !string.IsNullOrWhiteSpace(mediaProps?.Artist) ? mediaProps.Artist : "Unknown Artist";
@@ -120,6 +171,23 @@ namespace WinIsland.App.Services
                     thumbSource = await LoadThumbnailAsync(mediaProps.Thumbnail);
                 }
 
+                TimeSpan position = TimeSpan.Zero;
+                TimeSpan startTime = TimeSpan.Zero;
+                TimeSpan endTime = TimeSpan.Zero;
+                TimeSpan duration = TimeSpan.Zero;
+                DateTimeOffset lastUpdated = DateTimeOffset.UtcNow;
+                bool canSeek = false;
+
+                if (timeline != null)
+                {
+                    position = timeline.Position;
+                    startTime = timeline.StartTime;
+                    endTime = timeline.EndTime;
+                    duration = timeline.EndTime >= timeline.StartTime ? (timeline.EndTime - timeline.StartTime) : TimeSpan.Zero;
+                    lastUpdated = timeline.LastUpdatedTime != DateTimeOffset.MinValue ? timeline.LastUpdatedTime : DateTimeOffset.UtcNow;
+                    canSeek = duration > TimeSpan.Zero;
+                }
+
                 CurrentTrack = new MediaTrackInfo
                 {
                     Title = title,
@@ -127,7 +195,13 @@ namespace WinIsland.App.Services
                     Album = album,
                     IsPlaying = isPlaying,
                     Thumbnail = thumbSource,
-                    HasActiveSession = true
+                    HasActiveSession = true,
+                    Position = position,
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    Duration = duration,
+                    LastUpdatedTime = lastUpdated,
+                    CanSeek = canSeek
                 };
 
                 NotifyTrackChanged();
@@ -199,6 +273,58 @@ namespace WinIsland.App.Services
             {
                 return false;
             }
+        }
+
+        public async Task<bool> TrySeekAsync(TimeSpan targetPosition)
+        {
+            if (_currentSession == null) return false;
+            try
+            {
+                CurrentTrack.Position = targetPosition;
+                CurrentTrack.LastUpdatedTime = DateTimeOffset.UtcNow;
+                NotifyTrackChanged();
+
+                return await _currentSession.TryChangePlaybackPositionAsync(targetPosition.Ticks);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MediaControlService] Seek error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public (TimeSpan position, TimeSpan duration, double progress) GetCurrentProgress()
+        {
+            var track = CurrentTrack;
+            if (!track.HasActiveSession || track.Duration <= TimeSpan.Zero)
+            {
+                return (track.Position, track.Duration, 0.0);
+            }
+
+            TimeSpan currentPos = track.Position;
+            if (track.IsPlaying && track.LastUpdatedTime > DateTimeOffset.MinValue)
+            {
+                var elapsed = DateTimeOffset.UtcNow - track.LastUpdatedTime;
+                if (elapsed > TimeSpan.Zero)
+                {
+                    currentPos += elapsed;
+                }
+            }
+
+            if (currentPos > track.EndTime && track.EndTime > TimeSpan.Zero)
+            {
+                currentPos = track.EndTime;
+            }
+            if (currentPos < track.StartTime)
+            {
+                currentPos = track.StartTime;
+            }
+
+            double totalMs = track.Duration.TotalMilliseconds;
+            double currentMs = (currentPos - track.StartTime).TotalMilliseconds;
+            double progress = totalMs > 0 ? Math.Clamp(currentMs / totalMs, 0.0, 1.0) : 0.0;
+
+            return (currentPos, track.Duration, progress);
         }
 
         private void NotifyTrackChanged()

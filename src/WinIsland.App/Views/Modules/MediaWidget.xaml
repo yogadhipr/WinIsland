@@ -77,10 +77,25 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Row 1: Thin Scrubber Bar (4px) -->
-            <Grid Grid.Row="1" Height="4" Margin="0,8,0,8">
-                <Border Background="#20FFFFFF" CornerRadius="2"/>
-                <Border Background="#E5E5EA" CornerRadius="2" HorizontalAlignment="Left" Width="100"/>
+            <!-- Row 1: Interactive Scrubber Bar (4px) with duration labels -->
+            <Grid Grid.Row="1" Margin="0,6,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="TxtCurrentTime" Text="00:00" MinWidth="28" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <Grid Grid.Column="1" x:Name="ScrubberTrackContainer" Height="14" Background="Transparent" Cursor="Hand" VerticalAlignment="Center"
+                      MouseLeftButtonDown="OnScrubberMouseDown"
+                      MouseMove="OnScrubberMouseMove"
+                      MouseLeftButtonUp="OnScrubberMouseUp"
+                      MouseEnter="OnScrubberMouseEnter"
+                      MouseLeave="OnScrubberMouseLeave">
+                    <Border x:Name="ScrubberTrackBackground" Height="4" Background="#20FFFFFF" CornerRadius="2" VerticalAlignment="Center" ClipToBounds="True">
+                        <Border x:Name="ScrubberFill" Background="#E5E5EA" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                    </Border>
+                </Grid>
+                <TextBlock Grid.Column="2" x:Name="TxtRemainingTime" Text="-00:00" MinWidth="32" TextAlignment="Right" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center" Margin="6,0,0,0"/>
             </Grid>
 
             <!-- Row 2: Media Control Buttons (Proportional) -->

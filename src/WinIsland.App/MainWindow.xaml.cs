@@ -151,6 +151,7 @@ namespace WinIsland.App
 
         private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
         {
+            ScrubberTrackContainer.SizeChanged += (s, ev) => UpdateMediaProgress();
             StartPetWalkingAnimation();
             LoadCurrentSettings();
             InitBrightnessAndVolume();
@@ -463,6 +464,9 @@ namespace WinIsland.App
 
                 // Tab Music:
                 MediaProgressBar.Visibility = Visibility.Collapsed;
+                TxtCurrentTime.Text = "00:00";
+                TxtRemainingTime.Text = "-00:00";
+                ScrubberFill.Width = 0;
                 ExpandedVisualizer.Visibility = Visibility.Collapsed;
                 NoMediaPlaceholder.Visibility = Visibility.Visible;
                 ActiveMediaDetails.Visibility = Visibility.Collapsed;
@@ -498,6 +502,8 @@ namespace WinIsland.App
                 BtnPlayPause.IsEnabled = true;
                 BtnNextTrack.Opacity = 1.0;
                 BtnNextTrack.IsEnabled = true;
+
+                UpdateMediaProgress();
             }
             else
             {
@@ -518,6 +524,8 @@ namespace WinIsland.App
                 BtnPlayPause.IsEnabled = true;
                 BtnNextTrack.Opacity = 1.0;
                 BtnNextTrack.IsEnabled = true;
+
+                UpdateMediaProgress();
             }
 
             // --- 2. IF-ELSE STATUS BATERAI ---
@@ -718,6 +726,11 @@ namespace WinIsland.App
                                   _viewModel.MediaInfo.Title != "No Media Playing";
             bool isPlaying = hasActiveMedia && _viewModel.MediaInfo.IsPlaying;
 
+            if (hasActiveMedia)
+            {
+                UpdateMediaProgress();
+            }
+
             if (!isPlaying)
             {
                 SetVisualizerBarsStatic();
@@ -753,6 +766,137 @@ namespace WinIsland.App
             EqBar4.Background = greenBrush;
             EqBar5.Background = whiteBrush;
             EqBar6.Background = whiteBrush;
+        }
+
+        #endregion
+
+        #region Interactive Scrubber Logic
+
+        private bool _isScrubbing;
+
+        private void OnScrubberMouseEnter(object sender, MouseEventArgs e)
+        {
+            ScrubberTrackBackground.Height = 5;
+            ScrubberFill.Background = (Brush)new BrushConverter().ConvertFromString("#FFFFFF")!;
+        }
+
+        private void OnScrubberMouseLeave(object sender, MouseEventArgs e)
+        {
+            if (!_isScrubbing)
+            {
+                ScrubberTrackBackground.Height = 4;
+                ScrubberFill.Background = (Brush)new BrushConverter().ConvertFromString("#E5E5EA")!;
+            }
+        }
+
+        private void OnScrubberMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_viewModel.MediaInfo.HasActiveSession || _viewModel.MediaInfo.Duration <= TimeSpan.Zero)
+                return;
+
+            _isScrubbing = true;
+            ScrubberTrackContainer.CaptureMouse();
+            ScrubberTrackBackground.Height = 5;
+            ScrubberFill.Background = (Brush)new BrushConverter().ConvertFromString("#FFFFFF")!;
+
+            UpdateScrubPosition(e.GetPosition(ScrubberTrackContainer).X);
+        }
+
+        private void OnScrubberMouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isScrubbing)
+            {
+                UpdateScrubPosition(e.GetPosition(ScrubberTrackContainer).X);
+            }
+        }
+
+        private void OnScrubberMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isScrubbing)
+            {
+                _isScrubbing = false;
+                ScrubberTrackContainer.ReleaseMouseCapture();
+
+                if (!ScrubberTrackContainer.IsMouseOver)
+                {
+                    ScrubberTrackBackground.Height = 4;
+                    ScrubberFill.Background = (Brush)new BrushConverter().ConvertFromString("#E5E5EA")!;
+                }
+
+                double trackWidth = ScrubberTrackContainer.ActualWidth;
+                if (trackWidth > 0 && _viewModel.MediaInfo.Duration > TimeSpan.Zero)
+                {
+                    double mouseX = e.GetPosition(ScrubberTrackContainer).X;
+                    double ratio = Math.Clamp(mouseX / trackWidth, 0.0, 1.0);
+                    var targetTime = _viewModel.MediaInfo.StartTime + TimeSpan.FromMilliseconds(_viewModel.MediaInfo.Duration.TotalMilliseconds * ratio);
+                    _ = MediaControlService.Instance.TrySeekAsync(targetTime);
+                }
+            }
+        }
+
+        private void UpdateScrubPosition(double mouseX)
+        {
+            double trackWidth = ScrubberTrackContainer.ActualWidth;
+            if (trackWidth <= 0 || _viewModel.MediaInfo.Duration <= TimeSpan.Zero) return;
+
+            double ratio = Math.Clamp(mouseX / trackWidth, 0.0, 1.0);
+            ScrubberFill.Width = trackWidth * ratio;
+
+            var previewPos = _viewModel.MediaInfo.StartTime + TimeSpan.FromMilliseconds(_viewModel.MediaInfo.Duration.TotalMilliseconds * ratio);
+            var previewRemaining = _viewModel.MediaInfo.Duration - (previewPos - _viewModel.MediaInfo.StartTime);
+            if (previewRemaining < TimeSpan.Zero) previewRemaining = TimeSpan.Zero;
+
+            TxtCurrentTime.Text = _viewModel.MediaInfo.Duration.TotalHours >= 1
+                ? previewPos.ToString(@"hh\:mm\:ss")
+                : previewPos.ToString(@"mm\:ss");
+
+            TxtRemainingTime.Text = "-" + (_viewModel.MediaInfo.Duration.TotalHours >= 1
+                ? previewRemaining.ToString(@"hh\:mm\:ss")
+                : previewRemaining.ToString(@"mm\:ss"));
+        }
+
+        private void UpdateMediaProgress()
+        {
+            if (_isScrubbing) return;
+
+            var (currentPos, duration, progress) = MediaControlService.Instance.GetCurrentProgress();
+
+            if (duration > TimeSpan.Zero)
+            {
+                string curStr = duration.TotalHours >= 1
+                    ? currentPos.ToString(@"hh\:mm\:ss")
+                    : currentPos.ToString(@"mm\:ss");
+
+                var remaining = duration - currentPos;
+                if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
+
+                string remStr = "-" + (duration.TotalHours >= 1
+                    ? remaining.ToString(@"hh\:mm\:ss")
+                    : remaining.ToString(@"mm\:ss"));
+
+                if (TxtCurrentTime.Text != curStr) TxtCurrentTime.Text = curStr;
+                if (TxtRemainingTime.Text != remStr) TxtRemainingTime.Text = remStr;
+
+                double trackWidth = ScrubberTrackContainer.ActualWidth;
+                if (trackWidth > 0)
+                {
+                    ScrubberFill.Width = Math.Clamp(trackWidth * progress, 0, trackWidth);
+                }
+            }
+            else
+            {
+                if (currentPos > TimeSpan.Zero)
+                {
+                    string curStr = currentPos.ToString(@"mm\:ss");
+                    if (TxtCurrentTime.Text != curStr) TxtCurrentTime.Text = curStr;
+                }
+                else
+                {
+                    if (TxtCurrentTime.Text != "00:00") TxtCurrentTime.Text = "00:00";
+                }
+                if (TxtRemainingTime.Text != "--:--") TxtRemainingTime.Text = "--:--";
+                ScrubberFill.Width = 0;
+            }
         }
 
         #endregion

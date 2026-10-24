@@ -508,18 +508,25 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <!-- Middle: Progress Scrubber Bar with left & right time duration -->
+                                    <!-- Middle: Interactive Progress Scrubber Bar with left & right time duration -->
                                     <Grid x:Name="MediaProgressBar" Grid.Row="1" Margin="0,6,0,4">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="TxtCurrentTime" Text="01:24" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <Border Grid.Column="1" Height="4" Background="#20FFFFFF" CornerRadius="2" VerticalAlignment="Center">
-                                            <Border x:Name="ScrubberFill" Background="#E5E5EA" CornerRadius="2" HorizontalAlignment="Left" Width="100"/>
-                                        </Border>
-                                        <TextBlock Grid.Column="2" x:Name="TxtRemainingTime" Text="-02:35" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock x:Name="TxtCurrentTime" Text="00:00" MinWidth="28" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <Grid Grid.Column="1" x:Name="ScrubberTrackContainer" Height="14" Background="Transparent" Cursor="Hand" VerticalAlignment="Center"
+                                              MouseLeftButtonDown="OnScrubberMouseDown"
+                                              MouseMove="OnScrubberMouseMove"
+                                              MouseLeftButtonUp="OnScrubberMouseUp"
+                                              MouseEnter="OnScrubberMouseEnter"
+                                              MouseLeave="OnScrubberMouseLeave">
+                                            <Border x:Name="ScrubberTrackBackground" Height="4" Background="#20FFFFFF" CornerRadius="2" VerticalAlignment="Center" ClipToBounds="True">
+                                                <Border x:Name="ScrubberFill" Background="#E5E5EA" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                            </Border>
+                                        </Grid>
+                                        <TextBlock Grid.Column="2" x:Name="TxtRemainingTime" Text="-00:00" MinWidth="32" TextAlignment="Right" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </Grid>
 
                                     <!-- Bottom: Proportionally Balanced Controls (Prev, 30x30 Glass Play/Pause, Next) -->
