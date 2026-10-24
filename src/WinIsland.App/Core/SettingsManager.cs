@@ -18,6 +18,9 @@ namespace WinIsland.App.Core
         public bool EnablePixelPet { get; set; } = true;
 
         public bool RunOnStartup { get; set; } = false;
+
+        public int GhostOpacityPercent { get; set; } = 15;
+        public string DisplayTarget { get; set; } = "Primary"; // "Primary" or "ActiveCursor"
     }
 
     public class SettingsManager

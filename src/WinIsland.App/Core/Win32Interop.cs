@@ -23,6 +23,17 @@ namespace WinIsland.App.Core
         public const int HTTRANSPARENT = -1;
         public const int HTCLIENT = 1;
 
+        public const int WM_DISPLAYCHANGE = 0x007E;
+        public const int WM_DPICHANGED = 0x02E0;
+
+        public const int VK_RBUTTON = 0x02;
+        public const int VK_CONTROL = 0x11;
+
+        public const uint MONITOR_DEFAULTTONULL = 0;
+        public const uint MONITOR_DEFAULTTOPRIMARY = 1;
+        public const uint MONITOR_DEFAULTTONEAREST = 2;
+        public const uint MONITORINFOF_PRIMARY = 1;
+
         public enum QUERY_USER_NOTIFICATION_STATE
         {
             QUNS_NOT_PRESENT = 1,
@@ -34,8 +45,31 @@ namespace WinIsland.App.Core
             QUNS_APP = 7
         }
 
+        public enum MonitorDpiType
+        {
+            MDT_EFFECTIVE_DPI = 0,
+            MDT_ANGULAR_DPI = 1,
+            MDT_RAW_DPI = 2,
+            MDT_DEFAULT = MDT_EFFECTIVE_DPI
+        }
+
+        [DllImport("user32.dll")]
+        public static extern short GetAsyncKeyState(int vKey);
+
         [DllImport("shell32.dll")]
         public static extern int SHQueryUserNotificationState(out QUERY_USER_NOTIFICATION_STATE pquns);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
+
+        [DllImport("shcore.dll")]
+        public static extern int GetDpiForMonitor(IntPtr hmonitor, MonitorDpiType dpiType, out uint dpiX, out uint dpiY);
 
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr", SetLastError = true)]
         private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
@@ -65,6 +99,13 @@ namespace WinIsland.App.Core
         public static extern IntPtr GetDesktopWindow();
 
         [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
         public struct RECT
         {
             public int Left;
@@ -74,6 +115,59 @@ namespace WinIsland.App.Core
 
             public int Width => Right - Left;
             public int Height => Bottom - Top;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct MONITORINFOEX
+        {
+            public int cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public uint dwFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string szDevice;
+        }
+
+        public class MonitorBounds
+        {
+            public IntPtr HMonitor;
+            public int Left;
+            public int Top;
+            public int Width;
+            public int Height;
+            public double DpiScaleX = 1.0;
+            public double DpiScaleY = 1.0;
+            public bool IsPrimary;
+        }
+
+        public static MonitorBounds GetMonitorBounds(IntPtr hMon)
+        {
+            var mi = new MONITORINFOEX();
+            mi.cbSize = Marshal.SizeOf(typeof(MONITORINFOEX));
+            GetMonitorInfo(hMon, ref mi);
+
+            uint dpiX = 96, dpiY = 96;
+            try
+            {
+                GetDpiForMonitor(hMon, MonitorDpiType.MDT_EFFECTIVE_DPI, out dpiX, out dpiY);
+            }
+            catch
+            {
+                dpiX = 96;
+                dpiY = 96;
+            }
+
+            return new MonitorBounds
+            {
+                HMonitor = hMon,
+                Left = mi.rcMonitor.Left,
+                Top = mi.rcMonitor.Top,
+                Width = mi.rcMonitor.Right - mi.rcMonitor.Left,
+                Height = mi.rcMonitor.Bottom - mi.rcMonitor.Top,
+                DpiScaleX = dpiX / 96.0,
+                DpiScaleY = dpiY / 96.0,
+                IsPrimary = (mi.dwFlags & MONITORINFOF_PRIMARY) != 0
+            };
         }
 
         public static IntPtr GetWindowLong(IntPtr hWnd, int nIndex)
@@ -130,13 +224,25 @@ namespace WinIsland.App.Core
             {
                 if (GetWindowRect(fgHwnd, out RECT rect))
                 {
-                    int screenW = (int)SystemParameters.PrimaryScreenWidth;
-                    int screenH = (int)SystemParameters.PrimaryScreenHeight;
-
-                    // If foreground window covers the entire primary monitor
-                    if (rect.Left <= 0 && rect.Top <= 0 && rect.Right >= screenW && rect.Bottom >= screenH)
+                    IntPtr hMon = MonitorFromWindow(fgHwnd, MONITOR_DEFAULTTONEAREST);
+                    if (hMon != IntPtr.Zero)
                     {
-                        return true;
+                        var bounds = GetMonitorBounds(hMon);
+                        if (rect.Left <= bounds.Left && rect.Top <= bounds.Top &&
+                            rect.Right >= (bounds.Left + bounds.Width) &&
+                            rect.Bottom >= (bounds.Top + bounds.Height))
+                        {
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        int screenW = (int)SystemParameters.PrimaryScreenWidth;
+                        int screenH = (int)SystemParameters.PrimaryScreenHeight;
+                        if (rect.Left <= 0 && rect.Top <= 0 && rect.Right >= screenW && rect.Bottom >= screenH)
+                        {
+                            return true;
+                        }
                     }
                 }
             }

@@ -219,6 +219,8 @@
                 MouseEnter="OnMainIslandMouseEnter"
                 MouseLeave="OnMainIslandMouseLeave"
                 PreviewMouseWheel="OnMainIslandMouseWheel"
+                PreviewMouseRightButtonDown="OnMainIslandPreviewMouseRightButtonDown"
+                PreviewMouseRightButtonUp="OnMainIslandPreviewMouseRightButtonUp"
                 AllowDrop="True"
                 DragEnter="OnMainIslandDragEnter"
                 DragLeave="OnMainIslandDragLeave"
@@ -822,7 +824,7 @@
                                                    VerticalAlignment="Center" HorizontalAlignment="Right"/>
                                     </Grid>
 
-                                    <!-- Display Brightness Slider in Tab Settings -->
+                                    <!-- Ghost Opacity (Click-Through) Slider in Tab Settings -->
                                     <Grid Margin="0,3,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -832,14 +834,38 @@
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <Path Width="11" Height="11" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
                                                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent" Margin="0,0,5,0"
-                                                  Data="M 6,3 A 3,3 0 1,1 5.99,3 Z M 6,0.5 V 1.8 M 6,10.2 V 11.5 M 0.5,6 H 1.8 M 10.2,6 H 11.5 M 2.1,2.1 L 3,3 M 9,9 L 9.9,9.9 M 2.1,9.9 L 3,9 M 9,3 L 9.9,2.1"/>
-                                            <TextBlock Text="Brightness:" FontSize="10" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                                                  Data="M 1.5,5.5 C 1.5,3 3,1.5 5.5,1.5 C 8,1.5 9.5,3 9.5,5.5 C 9.5,8 8,9.5 5.5,9.5 C 3,9.5 1.5,8 1.5,5.5 Z M 5.5,3.5 A 2,2 0 1,0 5.5,7.5 A 2,2 0 1,0 5.5,3.5 Z"/>
+                                            <TextBlock Text="Ghost Opacity:" FontSize="10" Foreground="#8E8E93" VerticalAlignment="Center"
+                                                       ToolTip="Transparansi saat Ghost Mode / Click-Through aktif (Hold Ctrl / Klik Kanan Tahan)"/>
                                         </StackPanel>
-                                        <Slider Grid.Column="1" x:Name="SettingsBrightnessSlider" Style="{StaticResource MacThinSliderStyle}"
-                                                Minimum="0" Maximum="100" Value="100" Margin="8,0" VerticalAlignment="Center"
-                                                ValueChanged="OnBrightnessSliderValueChanged"/>
-                                        <TextBlock Grid.Column="2" x:Name="TxtSettingsBrightnessPercent" Text="100%" FontSize="10" Foreground="#30D158"
+                                        <Slider Grid.Column="1" x:Name="SettingsGhostOpacitySlider" Style="{StaticResource MacThinSliderStyle}"
+                                                Minimum="5" Maximum="80" Value="15" SmallChange="5" LargeChange="10"
+                                                TickFrequency="5" IsSnapToTickEnabled="True" Margin="8,0" VerticalAlignment="Center"
+                                                ValueChanged="OnGhostOpacitySliderValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="TxtSettingsGhostOpacityPercent" Text="15%" FontSize="10" Foreground="#30D158"
                                                    VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                    </Grid>
+
+                                    <!-- Display Target Monitor (Primary vs Active Cursor Monitor) -->
+                                    <Grid Margin="0,3,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Width="11" Height="11" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent" Margin="0,0,5,0"
+                                                  Data="M 1,2 H 10 V 8 H 1 Z M 3.5,10 H 7.5 M 5.5,8 V 10"/>
+                                            <TextBlock Text="Display:" FontSize="10" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <RadioButton x:Name="RadioDisplayPrimary" Content="Primary Monitor" GroupName="DisplayTargetGroup"
+                                                         Style="{StaticResource SegmentedPillButtonStyle}" FontSize="9" Margin="0,0,3,0"
+                                                         Click="OnDisplayTargetChanged"/>
+                                            <RadioButton x:Name="RadioDisplayCursor" Content="Active Cursor Monitor" GroupName="DisplayTargetGroup"
+                                                         Style="{StaticResource SegmentedPillButtonStyle}" FontSize="9"
+                                                         Click="OnDisplayTargetChanged"/>
+                                        </StackPanel>
                                     </Grid>
 
                                     <!-- Run on Windows Startup -->

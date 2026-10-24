@@ -109,3 +109,12 @@ $RECYCLE.BIN/
 *.dmp
 *.crash
 *.stackdump
+
+# ------------------------------------------
+# Local Notes & Scratch Documentation
+# ------------------------------------------
+NOTES.md
+notes.md
+*.notes.md
+*.notes.txt
+

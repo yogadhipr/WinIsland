@@ -27,12 +27,19 @@ namespace WinIsland.App
         private readonly DispatcherTimer _collapseWatchdogTimer;
         private readonly DispatcherTimer _fullscreenCheckTimer;
         private readonly DispatcherTimer _visualizerTimer;
+        private readonly DispatcherTimer _ghostModeTimer;
+        private readonly DispatcherTimer _rightClickHoldTimer;
         private SystemTrayService? _trayService;
 
         private bool _isExpanded;
         private bool _isTransitioning;
         private bool _isHiddenByFullscreen;
         private bool _isDraggingFile;
+        private bool _isGhostModeActive;
+        private bool _isRightMouseDown;
+        private IntPtr _currentHMonitor = IntPtr.Zero;
+        private IntPtr _pendingHMonitor = IntPtr.Zero;
+        private int _monitorPendingTicks;
         private int _outsideTicks;
         private bool _isInitializingSettings = true;
         private Point _dragStartPoint;
@@ -94,6 +101,14 @@ namespace WinIsland.App
             _visualizerTimer.Tick += OnVisualizerTick;
             _visualizerTimer.Start();
 
+            // 5. Temporary Ghost Mode Timer (3 seconds click-through)
+            _ghostModeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _ghostModeTimer.Tick += OnGhostModeTimerTick;
+
+            // 6. Right-Click Hold Timer (200ms threshold for Klik Kanan Tahan)
+            _rightClickHoldTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            _rightClickHoldTimer.Tick += OnRightClickHoldTimerTick;
+
             // Hook ViewModel events & Services
             _viewModel.HoverController.ExpandRequested += () => Dispatcher.Invoke(() => _ = ExpandIslandAsync());
             _viewModel.HoverController.CollapseRequested += () => Dispatcher.Invoke(() => _ = CollapseIslandAsync());
@@ -131,17 +146,9 @@ namespace WinIsland.App
                     {
                         BrightnessSlider.Value = br;
                     }
-                    if (SettingsBrightnessSlider != null && Math.Abs(SettingsBrightnessSlider.Value - br) > 1)
-                    {
-                        SettingsBrightnessSlider.Value = br;
-                    }
                     if (TxtBrightnessPercent != null)
                     {
                         TxtBrightnessPercent.Text = $"{br}%";
-                    }
-                    if (TxtSettingsBrightnessPercent != null)
-                    {
-                        TxtSettingsBrightnessPercent.Text = $"{br}%";
                     }
                 });
             };
@@ -162,11 +169,6 @@ namespace WinIsland.App
         {
             base.OnSourceInitialized(e);
 
-            // Center window horizontally at top of screen with 0 top coordinate (Margin="0,12,0,0" provides floating gap)
-            double screenW = SystemParameters.PrimaryScreenWidth;
-            Left = (screenW - Width) / 2.0;
-            Top = 0.0;
-
             // Make borderless topmost overlay without stealing focus or Alt-Tab presence
             Win32Interop.MakeOverlayWindow(this);
 
@@ -176,6 +178,9 @@ namespace WinIsland.App
             // Hook WM_NCHITTEST for transparent click-through outside the capsule
             var hwndSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             hwndSource?.AddHook(WndProc);
+
+            // Position window according to Display Target setting (Primary or Active Cursor Monitor)
+            UpdateIslandPosition(force: true);
 
             // Initialize System Tray Icon
             InitializeTray();
@@ -218,33 +223,65 @@ namespace WinIsland.App
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (msg == Win32Interop.WM_NCHITTEST)
+            if (_isGhostModeActive)
             {
-                int x = (short)(lParam.ToInt64() & 0xFFFF);
-                int y = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
-
-                Point windowPt = PointFromScreen(new Point(x, y));
-                GeneralTransform transform = MainIslandBorder.TransformToAncestor(this);
-                Rect capsuleBounds = transform.TransformBounds(new Rect(0, 0, MainIslandBorder.ActualWidth, MainIslandBorder.ActualHeight));
-
-                if (capsuleBounds.Contains(windowPt))
-                {
-                    handled = true;
-                    return (IntPtr)Win32Interop.HTCLIENT;
-                }
-                else
+                if (msg == Win32Interop.WM_NCHITTEST)
                 {
                     handled = true;
                     return (IntPtr)Win32Interop.HTTRANSPARENT;
                 }
             }
+            else if (msg == Win32Interop.WM_NCHITTEST)
+            {
+                int x = (short)(lParam.ToInt64() & 0xFFFF);
+                int y = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
+
+                try
+                {
+                    Point windowPt = PointFromScreen(new Point(x, y));
+                    GeneralTransform transform = MainIslandBorder.TransformToAncestor(this);
+                    Rect capsuleBounds = transform.TransformBounds(new Rect(0, 0, MainIslandBorder.ActualWidth, MainIslandBorder.ActualHeight));
+
+                    if (capsuleBounds.Contains(windowPt))
+                    {
+                        handled = true;
+                        return (IntPtr)Win32Interop.HTCLIENT;
+                    }
+                    else
+                    {
+                        handled = true;
+                        return (IntPtr)Win32Interop.HTTRANSPARENT;
+                    }
+                }
+                catch
+                {
+                    handled = true;
+                    return (IntPtr)Win32Interop.HTTRANSPARENT;
+                }
+            }
+            else if (msg == Win32Interop.WM_DISPLAYCHANGE || msg == Win32Interop.WM_DPICHANGED)
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdateIslandPosition(force: true)));
+            }
             return IntPtr.Zero;
         }
 
-        #region Win32 Cursor Watchdog & Hover Navigation
+        #region Win32 Cursor Watchdog, Hover & Ghost Mode
 
         private void OnMainIslandMouseEnter(object sender, MouseEventArgs e)
         {
+            // If holding Ctrl while mouse enters, immediately trigger Temporary Ghost Mode
+            if ((Win32Interop.GetAsyncKeyState(Win32Interop.VK_CONTROL) & 0x8000) != 0)
+            {
+                ActivateTemporaryGhostMode(3.0);
+                return;
+            }
+
+            if (_isGhostModeActive)
+            {
+                return;
+            }
+
             if (_viewModel.Settings.RequireAltKey && !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
             {
                 return;
@@ -262,10 +299,100 @@ namespace WinIsland.App
             _hoverTimer.Stop();
         }
 
+        private void OnMainIslandPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _isRightMouseDown = true;
+            _rightClickHoldTimer.Stop();
+            _rightClickHoldTimer.Start();
+        }
+
+        private void OnMainIslandPreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _isRightMouseDown = false;
+            _rightClickHoldTimer.Stop();
+        }
+
+        private void OnRightClickHoldTimerTick(object? sender, EventArgs e)
+        {
+            _rightClickHoldTimer.Stop();
+            if (_isRightMouseDown)
+            {
+                ActivateTemporaryGhostMode(3.0);
+            }
+        }
+
+        public void ActivateTemporaryGhostMode(double durationSeconds = 3.0)
+        {
+            _isGhostModeActive = true;
+            _hoverTimer.Stop();
+
+            double targetOpacity = Math.Clamp(_viewModel.Settings.GhostOpacityPercent / 100.0, 0.05, 1.0);
+
+            var anim = new DoubleAnimation(this.Opacity, targetOpacity, TimeSpan.FromMilliseconds(100));
+            this.BeginAnimation(UIElement.OpacityProperty, anim);
+
+            ApplyWindowTransparency(true);
+
+            _ghostModeTimer.Stop();
+            _ghostModeTimer.Interval = TimeSpan.FromSeconds(durationSeconds);
+            _ghostModeTimer.Start();
+        }
+
+        public void DeactivateGhostMode()
+        {
+            if (!_isGhostModeActive) return;
+
+            bool isCtrlDown = (Win32Interop.GetAsyncKeyState(Win32Interop.VK_CONTROL) & 0x8000) != 0;
+            bool isRightDown = (Win32Interop.GetAsyncKeyState(Win32Interop.VK_RBUTTON) & 0x8000) != 0;
+
+            if (isCtrlDown || isRightDown)
+            {
+                return;
+            }
+
+            _ghostModeTimer.Stop();
+            _isGhostModeActive = false;
+
+            ApplyWindowTransparency(false);
+
+            var anim = new DoubleAnimation(this.Opacity, 1.0, TimeSpan.FromMilliseconds(150));
+            this.BeginAnimation(UIElement.OpacityProperty, anim);
+        }
+
+        private void ApplyWindowTransparency(bool transparent)
+        {
+            try
+            {
+                var helper = new WindowInteropHelper(this);
+                IntPtr hwnd = helper.Handle;
+                if (hwnd == IntPtr.Zero) return;
+
+                long style = Win32Interop.GetWindowLong(hwnd, Win32Interop.GWL_EXSTYLE).ToInt64();
+                if (transparent)
+                {
+                    style |= Win32Interop.WS_EX_TRANSPARENT;
+                }
+                else
+                {
+                    style &= ~Win32Interop.WS_EX_TRANSPARENT;
+                }
+                Win32Interop.SetWindowLong(hwnd, Win32Interop.GWL_EXSTYLE, new IntPtr(style));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ApplyWindowTransparency] Error: {ex.Message}");
+            }
+        }
+
+        private void OnGhostModeTimerTick(object? sender, EventArgs e)
+        {
+            DeactivateGhostMode();
+        }
+
         private void OnHoverTimerTick(object? sender, EventArgs e)
         {
             _hoverTimer.Stop();
-            if (!_isExpanded && !_isTransitioning)
+            if (!_isExpanded && !_isTransitioning && !_isGhostModeActive)
             {
                 ExpandIsland();
             }
@@ -273,39 +400,153 @@ namespace WinIsland.App
 
         private async void OnCollapseWatchdogTick(object? sender, EventArgs e)
         {
-            if (!_isExpanded || _isTransitioning || _isDraggingFile)
+            // 1. Dynamic Multi-Monitor Cursor Tracking (when collapsed)
+            if (!_isExpanded && !_isTransitioning && _viewModel.Settings.DisplayTarget == "ActiveCursor")
             {
-                _outsideTicks = 0;
-                return;
+                if (GetCursorPos(out POINT curPt))
+                {
+                    var pt = new Win32Interop.POINT { X = curPt.X, Y = curPt.Y };
+                    IntPtr cursorMon = Win32Interop.MonitorFromPoint(pt, Win32Interop.MONITOR_DEFAULTTONEAREST);
+                    if (cursorMon != IntPtr.Zero && cursorMon != _currentHMonitor)
+                    {
+                        if (cursorMon == _pendingHMonitor)
+                        {
+                            _monitorPendingTicks++;
+                            if (_monitorPendingTicks >= 2) // 200ms debounce
+                            {
+                                _monitorPendingTicks = 0;
+                                _pendingHMonitor = IntPtr.Zero;
+                                UpdateIslandPosition();
+                            }
+                        }
+                        else
+                        {
+                            _pendingHMonitor = cursorMon;
+                            _monitorPendingTicks = 1;
+                        }
+                    }
+                    else
+                    {
+                        _pendingHMonitor = IntPtr.Zero;
+                        _monitorPendingTicks = 0;
+                    }
+                }
             }
 
+            // 2. Win32 Cursor Watchdog for Ghost Mode trigger & Auto-collapse
             if (GetCursorPos(out POINT screenPt))
             {
-                Point windowPt = PointFromScreen(new Point(screenPt.X, screenPt.Y));
-                GeneralTransform transform = MainIslandBorder.TransformToAncestor(this);
-                Rect capsuleBounds = transform.TransformBounds(new Rect(0, 0, MainIslandBorder.ActualWidth, MainIslandBorder.ActualHeight));
-
-                // 12px tolerance on all 4 sides (Top, Bottom, Left, Right)
-                Rect toleranceBounds = new Rect(
-                    capsuleBounds.X - 12,
-                    capsuleBounds.Y - 12,
-                    capsuleBounds.Width + 24,
-                    capsuleBounds.Height + 24
-                );
-
-                if (!toleranceBounds.Contains(windowPt))
+                try
                 {
-                    _outsideTicks++;
-                    if (_outsideTicks >= 2) // 2 ticks * 100ms = 200ms
+                    Point windowPt = PointFromScreen(new Point(screenPt.X, screenPt.Y));
+                    GeneralTransform transform = MainIslandBorder.TransformToAncestor(this);
+                    Rect capsuleBounds = transform.TransformBounds(new Rect(0, 0, MainIslandBorder.ActualWidth, MainIslandBorder.ActualHeight));
+
+                    // 12px tolerance on all 4 sides (Top, Bottom, Left, Right)
+                    Rect toleranceBounds = new Rect(
+                        capsuleBounds.X - 12,
+                        capsuleBounds.Y - 12,
+                        capsuleBounds.Width + 24,
+                        capsuleBounds.Height + 24
+                    );
+
+                    bool isOverIsland = toleranceBounds.Contains(windowPt);
+                    bool isCtrlDown = (Win32Interop.GetAsyncKeyState(Win32Interop.VK_CONTROL) & 0x8000) != 0;
+
+                    // Holding Ctrl near or over the island activates Temporary Ghost Mode
+                    if (isOverIsland && isCtrlDown && !_isGhostModeActive)
+                    {
+                        ActivateTemporaryGhostMode(3.0);
+                    }
+
+                    // Auto-collapse check for expanded state
+                    if (_isExpanded && !_isTransitioning && !_isDraggingFile)
+                    {
+                        if (!isOverIsland)
+                        {
+                            _outsideTicks++;
+                            if (_outsideTicks >= 2) // 2 ticks * 100ms = 200ms
+                            {
+                                _outsideTicks = 0;
+                                await CollapseIslandAsync();
+                            }
+                        }
+                        else
+                        {
+                            _outsideTicks = 0;
+                        }
+                    }
+                    else
                     {
                         _outsideTicks = 0;
-                        await CollapseIslandAsync();
+                    }
+                }
+                catch
+                {
+                    _outsideTicks = 0;
+                }
+            }
+        }
+
+        public void UpdateIslandPosition(bool force = false)
+        {
+            try
+            {
+                IntPtr targetHMon;
+                var s = SettingsManager.Instance.Current;
+
+                if (s.DisplayTarget == "ActiveCursor")
+                {
+                    if (GetCursorPos(out POINT pt))
+                    {
+                        var win32Pt = new Win32Interop.POINT { X = pt.X, Y = pt.Y };
+                        targetHMon = Win32Interop.MonitorFromPoint(win32Pt, Win32Interop.MONITOR_DEFAULTTONEAREST);
+                    }
+                    else
+                    {
+                        targetHMon = Win32Interop.MonitorFromPoint(new Win32Interop.POINT { X = 0, Y = 0 }, Win32Interop.MONITOR_DEFAULTTOPRIMARY);
                     }
                 }
                 else
                 {
-                    _outsideTicks = 0;
+                    targetHMon = Win32Interop.MonitorFromPoint(new Win32Interop.POINT { X = 0, Y = 0 }, Win32Interop.MONITOR_DEFAULTTOPRIMARY);
                 }
+
+                if (targetHMon == IntPtr.Zero) return;
+
+                if (!force && targetHMon == _currentHMonitor)
+                {
+                    return;
+                }
+
+                _currentHMonitor = targetHMon;
+
+                var bounds = Win32Interop.GetMonitorBounds(targetHMon);
+
+                int physicalWidth = (int)Math.Round(this.Width * bounds.DpiScaleX);
+                int physicalHeight = (int)Math.Round(this.Height * bounds.DpiScaleY);
+
+                int physicalX = bounds.Left + (bounds.Width - physicalWidth) / 2;
+                int physicalY = bounds.Top;
+
+                var helper = new WindowInteropHelper(this);
+                IntPtr hwnd = helper.Handle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    Win32Interop.SetWindowPos(
+                        hwnd,
+                        Win32Interop.HWND_TOPMOST,
+                        physicalX,
+                        physicalY,
+                        physicalWidth,
+                        physicalHeight,
+                        Win32Interop.SWP_NOACTIVATE | Win32Interop.SWP_SHOWWINDOW
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UpdateIslandPosition] Error: {ex.Message}");
             }
         }
 
@@ -913,9 +1154,7 @@ namespace WinIsland.App
             // Brightness (Read from hardware WMI / DDC/CI)
             int br = BrightnessService.Instance.CurrentBrightness;
             if (BrightnessSlider != null) BrightnessSlider.Value = br;
-            if (SettingsBrightnessSlider != null) SettingsBrightnessSlider.Value = br;
             if (TxtBrightnessPercent != null) TxtBrightnessPercent.Text = $"{br}%";
-            if (TxtSettingsBrightnessPercent != null) TxtSettingsBrightnessPercent.Text = $"{br}%";
         }
 
         private void OnVolumeSliderValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -932,18 +1171,6 @@ namespace WinIsland.App
         {
             int val = (int)e.NewValue;
             if (TxtBrightnessPercent != null) TxtBrightnessPercent.Text = $"{val}%";
-            if (TxtSettingsBrightnessPercent != null) TxtSettingsBrightnessPercent.Text = $"{val}%";
-
-            // Keep both sliders in sync
-            if (sender == BrightnessSlider && SettingsBrightnessSlider != null && Math.Abs(SettingsBrightnessSlider.Value - val) > 1)
-            {
-                SettingsBrightnessSlider.Value = val;
-            }
-            else if (sender == SettingsBrightnessSlider && BrightnessSlider != null && Math.Abs(BrightnessSlider.Value - val) > 1)
-            {
-                BrightnessSlider.Value = val;
-            }
-
             BrightnessService.Instance.SetBrightness(val);
         }
 
@@ -956,9 +1183,7 @@ namespace WinIsland.App
                 int newBr = Math.Clamp(BrightnessService.Instance.CurrentBrightness + (int)delta, 0, 100);
                 BrightnessService.Instance.SetBrightness(newBr);
                 if (BrightnessSlider != null) BrightnessSlider.Value = newBr;
-                if (SettingsBrightnessSlider != null) SettingsBrightnessSlider.Value = newBr;
                 if (TxtBrightnessPercent != null) TxtBrightnessPercent.Text = $"{newBr}%";
-                if (TxtSettingsBrightnessPercent != null) TxtSettingsBrightnessPercent.Text = $"{newBr}%";
             }
             else
             {
@@ -1075,6 +1300,25 @@ namespace WinIsland.App
             SliderHoverDelay.Value = s.HoverDelayMs;
             TxtDelayValue.Text = $"{s.HoverDelayMs}ms";
             ChkStartup.IsChecked = s.RunOnStartup;
+
+            if (SettingsGhostOpacitySlider != null)
+            {
+                SettingsGhostOpacitySlider.Value = s.GhostOpacityPercent;
+            }
+            if (TxtSettingsGhostOpacityPercent != null)
+            {
+                TxtSettingsGhostOpacityPercent.Text = $"{s.GhostOpacityPercent}%";
+            }
+
+            if (s.DisplayTarget == "ActiveCursor")
+            {
+                RadioDisplayCursor.IsChecked = true;
+            }
+            else
+            {
+                RadioDisplayPrimary.IsChecked = true;
+            }
+
             _isInitializingSettings = false;
         }
 
@@ -1102,6 +1346,33 @@ namespace WinIsland.App
                     SettingsManager.Instance.SaveSettings(s);
                 }
             }
+        }
+
+        private void OnGhostOpacitySliderValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            int val = (int)e.NewValue;
+            if (TxtSettingsGhostOpacityPercent != null)
+            {
+                TxtSettingsGhostOpacityPercent.Text = $"{val}%";
+            }
+
+            if (!_isInitializingSettings)
+            {
+                var s = SettingsManager.Instance.Current;
+                s.GhostOpacityPercent = val;
+                SettingsManager.Instance.SaveSettings(s);
+            }
+        }
+
+        private void OnDisplayTargetChanged(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializingSettings) return;
+
+            var s = SettingsManager.Instance.Current;
+            s.DisplayTarget = RadioDisplayCursor.IsChecked == true ? "ActiveCursor" : "Primary";
+            SettingsManager.Instance.SaveSettings(s);
+
+            UpdateIslandPosition(force: true);
         }
 
         private void OnStartupToggled(object sender, RoutedEventArgs e)
@@ -1165,6 +1436,8 @@ namespace WinIsland.App
             _collapseWatchdogTimer.Stop();
             _fullscreenCheckTimer.Stop();
             _visualizerTimer.Stop();
+            _ghostModeTimer.Stop();
+            _rightClickHoldTimer.Stop();
             _trayService?.Dispose();
             _viewModel.HoverController.Dispose();
             AudioHudService.Instance.Dispose();
