@@ -7,7 +7,7 @@
         xmlns:vm="clr-namespace:WinIsland.App.ViewModels"
         mc:Ignorable="d"
         Title="WinIsland Dynamic Island"
-        Height="270" Width="480"
+        Height="280" Width="660"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -25,7 +25,7 @@
         <Style x:Key="SegmentedPillButtonStyle" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#8E8E93"/>
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Margin" Value="1,0"/>
@@ -34,8 +34,8 @@
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="PillBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="9"
-                                Padding="9,3"
+                                CornerRadius="8"
+                                Padding="8,3"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -45,7 +45,7 @@
                                 <Setter Property="Foreground" Value="#E5E5EA"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="PillBorder" Property="Background" Value="#24FFFFFF"/>
+                                <Setter TargetName="PillBorder" Property="Background" Value="#2EFFFFFF"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                             </Trigger>
@@ -57,8 +57,8 @@
 
         <!-- macOS Glass Circle Button (30x30px transparent glass, white icon) -->
         <Style x:Key="GlassCircleButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="Height" Value="30"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
             <Setter Property="Background" Value="#1AFFFFFF"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -67,17 +67,17 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="CircleBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="15"
+                                CornerRadius="14"
                                 BorderBrush="#18FFFFFF"
                                 BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="CircleBorder" Property="Background" Value="#2EFFFFFF"/>
+                                <Setter TargetName="CircleBorder" Property="Background" Value="#30FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="CircleBorder" Property="Background" Value="#12FFFFFF"/>
+                                <Setter TargetName="CircleBorder" Property="Background" Value="#14FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="CircleBorder" Property="Opacity" Value="0.3"/>
@@ -88,8 +88,94 @@
             </Setter>
         </Style>
 
-        <!-- Small Media Control Button Style -->
-        <Style x:Key="MediaControlButtonStyle" TargetType="Button">
+        <!-- Carousel Chevron Button Style (< and >) -->
+        <Style x:Key="CarouselChevronButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ChevronBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="11">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ChevronBorder" Property="Background" Value="#38FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ChevronBorder" Property="Background" Value="#15FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark Capsule Action Button Style (e.g. [ Add Task ], [ Short Break ]) -->
+        <Style x:Key="DarkCapsuleButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#1C1C1E"/>
+            <Setter Property="Foreground" Value="#C7C7CC"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="9,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BtnBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="12"
+                                BorderBrush="#20FFFFFF"
+                                BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Background" Value="#2C2C30"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Background" Value="#161618"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Micro Dock Icon Button Style -->
+        <Style x:Key="MicroDockButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="DockBtnBorder" Background="{TemplateBinding Background}" CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="DockBtnBorder" Property="Background" Value="#24FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Media Control Button Style (Clean white vector without big white circle) -->
+        <Style x:Key="CleanMediaButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -101,10 +187,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BtnBorder" Property="Background" Value="#18FFFFFF"/>
+                                <Setter TargetName="BtnBorder" Property="Background" Value="#1AFFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.3"/>
+                                <Setter Property="Opacity" Value="0.25"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -112,23 +198,23 @@
             </Setter>
         </Style>
 
-        <!-- macOS Thin Slider Style (Track Height 4px, 12px circular white thumb, smooth click & drag) -->
+        <!-- macOS Thin Slider Style (Track Height 4px, 12px circular white thumb) -->
         <Style x:Key="MacThinSliderStyle" TargetType="Slider">
             <Setter Property="Stylus.IsPressAndHoldEnabled" Value="False"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Height" Value="20"/>
+            <Setter Property="Height" Value="18"/>
             <Setter Property="IsMoveToPointEnabled" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
-                        <Grid VerticalAlignment="Center" Height="20" Background="Transparent">
+                        <Grid VerticalAlignment="Center" Height="18" Background="Transparent">
                             <Border Height="4" CornerRadius="2" Background="#2C2C2E" VerticalAlignment="Center"/>
                             <Track x:Name="PART_Track">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
                                         <RepeatButton.Template>
                                             <ControlTemplate TargetType="RepeatButton">
-                                                <Border Background="Transparent" Height="20" VerticalAlignment="Center">
+                                                <Border Background="Transparent" Height="18" VerticalAlignment="Center">
                                                     <Border Height="4" CornerRadius="2" Background="#E5E5EA" VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
@@ -139,7 +225,7 @@
                                     <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
                                         <RepeatButton.Template>
                                             <ControlTemplate TargetType="RepeatButton">
-                                                <Border Background="Transparent" Height="20" VerticalAlignment="Center">
+                                                <Border Background="Transparent" Height="18" VerticalAlignment="Center">
                                                     <Border Height="4" Background="Transparent" VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
@@ -147,13 +233,13 @@
                                     </RepeatButton>
                                 </Track.IncreaseRepeatButton>
                                 <Track.Thumb>
-                                    <Thumb Width="16" Height="20" Cursor="Hand">
+                                    <Thumb Width="14" Height="18" Cursor="Hand">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Grid Background="Transparent" Width="16" Height="20">
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#FFFFFF" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <Grid Background="Transparent" Width="14" Height="18">
+                                                    <Border Width="10" Height="10" CornerRadius="5" Background="#FFFFFF" VerticalAlignment="Center" HorizontalAlignment="Center">
                                                         <Border.Effect>
-                                                            <DropShadowEffect Color="#000000" BlurRadius="3" ShadowDepth="1" Opacity="0.4"/>
+                                                            <DropShadowEffect Color="#000000" BlurRadius="2" ShadowDepth="1" Opacity="0.4"/>
                                                         </Border.Effect>
                                                     </Border>
                                                 </Grid>
@@ -206,9 +292,9 @@
     <Grid Background="Transparent" VerticalAlignment="Top" HorizontalAlignment="Center">
         <!-- Main Floating Capsule (Deep Matte Black #050505, Margin 0,12,0,0 with 1px border and deep drop shadow) -->
         <Border x:Name="MainIslandBorder"
-                Width="210"
+                Width="220"
                 Height="38"
-                CornerRadius="20"
+                CornerRadius="22"
                 Background="#050505"
                 BorderBrush="#18FFFFFF"
                 BorderThickness="1"
@@ -229,140 +315,94 @@
             <!-- Deep Matte Black Drop Shadow -->
             <Border.Effect>
                 <DropShadowEffect Color="#000000"
-                                  BlurRadius="28"
-                                  ShadowDepth="4"
-                                  Opacity="0.75"/>
+                                  BlurRadius="30"
+                                  ShadowDepth="5"
+                                  Opacity="0.82"/>
             </Border.Effect>
 
             <Grid ClipToBounds="True">
-                <!-- COMPACT VIEW: PixelPetCompactIcon, MiniAudioVisualizer, Pomodoro Countdown badge, 30px notch room, clock, and battery badge -->
+                <!-- Ambient Bottom Glow Layer (Warm amber/album gradient when music playing & lyrics open) -->
+                <Border x:Name="AmbientGlowBorder"
+                        VerticalAlignment="Bottom"
+                        Height="75"
+                        Opacity="0.55"
+                        IsHitTestVisible="False"
+                        CornerRadius="0,0,28,28"
+                        Visibility="Collapsed">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0.5,1" EndPoint="0.5,0">
+                            <GradientStop Color="#C86428" Offset="0.0"/>
+                            <GradientStop Color="#40C86428" Offset="0.5"/>
+                            <GradientStop Color="#00000000" Offset="1.0"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <!-- ========================================== -->
+                <!-- COMPACT VIEW: Standard Pill & Toast Modes  -->
+                <!-- ========================================== -->
                 <Grid x:Name="CompactView" Height="38" Margin="10,0" VerticalAlignment="Center" Visibility="Visible" Opacity="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                    <!-- 1. Standard Compact Mode View -->
+                    <Grid x:Name="CompactStandardContent" Visibility="Visible">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Left: PixelPetCompactIcon, CompactVisualizer & Pomodoro Countdown Badge -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border x:Name="PixelPetCompactIcon" Width="24" Height="20" VerticalAlignment="Center" Margin="0,0,5,0">
-                            <modules:PixelPetCanvas Width="24" Height="18" VerticalAlignment="Center"/>
-                        </Border>
+                        <!-- Left: PixelPetCompactIcon, CompactVisualizer & Pomodoro Countdown Badge -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border x:Name="PixelPetCompactIcon" Width="24" Height="20" VerticalAlignment="Center" Margin="0,0,5,0">
+                                <modules:PixelPetCanvas Width="24" Height="18" VerticalAlignment="Center"/>
+                            </Border>
 
-                        <StackPanel x:Name="CompactVisualizer" Orientation="Horizontal" Height="12" VerticalAlignment="Center" Margin="2,0,0,0">
-                            <Border x:Name="MiniBar1" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="5"/>
-                            <Border x:Name="MiniBar2" Width="2" Margin="1,0" CornerRadius="1" Background="#30D158" VerticalAlignment="Bottom" Height="9"/>
-                            <Border x:Name="MiniBar3" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="7"/>
-                            <Border x:Name="MiniBar4" Width="2" Margin="1,0" CornerRadius="1" Background="#30D158" VerticalAlignment="Bottom" Height="4"/>
+                            <StackPanel x:Name="CompactVisualizer" Orientation="Horizontal" Height="12" VerticalAlignment="Center" Margin="2,0,0,0">
+                                <Border x:Name="MiniBar1" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="5"/>
+                                <Border x:Name="MiniBar2" Width="2" Margin="1,0" CornerRadius="1" Background="#30D158" VerticalAlignment="Bottom" Height="9"/>
+                                <Border x:Name="MiniBar3" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="7"/>
+                                <Border x:Name="MiniBar4" Width="2" Margin="1,0" CornerRadius="1" Background="#30D158" VerticalAlignment="Bottom" Height="4"/>
+                            </StackPanel>
+
+                            <!-- Compact Pomodoro Badge (Shown only when timer running) -->
+                            <Border x:Name="CompactPomodoroBadge" Background="#1FFF453A" CornerRadius="5" Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Stroke="#FF453A" StrokeThickness="1.2" Width="7" Height="7" Stretch="Uniform" Margin="0,0,3,0"
+                                          Data="M 4,1 A 3,3 0 1,1 3.99,1 Z M 4,1 V 4 L 6,4"/>
+                                    <TextBlock Text="{Binding PomoTimeRemaining}" FontSize="9" FontWeight="Bold" Foreground="#FF453A" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
 
-                        <!-- Compact Pomodoro Badge (Shown only when timer running) -->
-                        <Border x:Name="CompactPomodoroBadge" Background="#1FFF453A" CornerRadius="5" Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Stroke="#FF453A" StrokeThickness="1.2" Width="7" Height="7" Stretch="Uniform" Margin="0,0,3,0"
-                                      Data="M 4,1 A 3,3 0 1,1 3.99,1 Z M 4,1 V 4 L 6,4"/>
-                                <TextBlock Text="{Binding PomoTimeRemaining}" FontSize="9" FontWeight="Bold" Foreground="#FF453A" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                        <!-- Center: Notch Breathing Room -->
+                        <Border Grid.Column="1" Width="24" Background="Transparent" HorizontalAlignment="Center"/>
 
-                    <!-- Center: Notch Breathing Room -->
-                    <Border Grid.Column="1" Width="30" Background="Transparent" HorizontalAlignment="Center"/>
-
-                    <!-- Right: CompactClockText & CompactBatteryBadge -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="CompactClockText"
-                                   Text="{Binding CurrentTimeString}"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"
-                                   Foreground="#FFFFFF"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,6,0"/>
-
-                        <Border x:Name="CompactBatteryBadge"
-                                Background="#12FFFFFF"
-                                BorderBrush="#1FFFFFFF"
-                                BorderThickness="1"
-                                CornerRadius="5"
-                                Padding="5,2"
-                                VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock x:Name="CompactBatteryText"
-                                           Text="{Binding BatteryText}"
-                                           FontSize="9"
-                                           FontWeight="Bold"
-                                           Foreground="#EBEBF5"
-                                           VerticalAlignment="Center"/>
-                                <!-- Monochrome Thin Charging Bolt Path (No emoji) -->
-                                <Path x:Name="CompactChargingBoltPath"
-                                      Width="7" Height="9"
-                                      Stretch="Uniform"
-                                      Stroke="#30D158"
-                                      StrokeThickness="1.2"
-                                      Fill="#30D158"
-                                      Margin="3,0,0,0"
-                                      VerticalAlignment="Center"
-                                      Visibility="Collapsed"
-                                      Data="M 3.5,0.5 L 1,5.2 H 3.5 L 2.8,9.5 L 6.8,4.5 H 4.2 Z"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Grid>
-
-                <!-- EXPANDED VIEW: 3-Row Grid layout (Row 0: Unified Header, Row 1: Content Area, Row 2: Dedicated Pixel Pet Track) -->
-                <Grid x:Name="ExpandedView" Visibility="Collapsed" Opacity="0">
-                    <Grid.RowDefinitions>
-                        <!-- Row 0: Unified Header -->
-                        <RowDefinition Height="36"/>
-                        <!-- Row 1: Content Area -->
-                        <RowDefinition Height="*"/>
-                        <!-- Row 2: Dedicated Pixel Pet Track -->
-                        <RowDefinition Height="24"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- ROW 0: UNIFIED HEADER -->
-                    <Grid Grid.Row="0" Margin="12,5,12,0">
-                        <!-- Left: macOS Segmented Pill Control -->
-                        <Border Background="#121215"
-                                CornerRadius="10"
-                                Padding="2"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <RadioButton x:Name="MusicTabRadio" Content="Music" Tag="Media" IsChecked="True" Style="{StaticResource SegmentedPillButtonStyle}" Click="OnTabSelected"/>
-                                <RadioButton x:Name="FilesTabRadio" Content="Files" Tag="FileShelf" Style="{StaticResource SegmentedPillButtonStyle}" Click="OnTabSelected"/>
-                                <RadioButton x:Name="ToolsTabRadio" Content="Tools" Tag="QuickTools" Style="{StaticResource SegmentedPillButtonStyle}" Click="OnTabSelected"/>
-                                <RadioButton x:Name="SettingsTabRadio" Content="Settings" Tag="Settings" Style="{StaticResource SegmentedPillButtonStyle}" Click="OnTabSelected"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Right: Clock, Monochrome Battery Badge, Minimize Button (—) -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding CurrentTimeString}"
+                        <!-- Right: CompactClockText & CompactBatteryBadge -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="CompactClockText"
+                                       Text="{Binding CurrentTimeString}"
                                        FontSize="11"
                                        FontWeight="SemiBold"
-                                       Foreground="#E5E5EA"
+                                       Foreground="#FFFFFF"
                                        VerticalAlignment="Center"
-                                       Margin="0,0,8,0"/>
+                                       Margin="0,0,6,0"/>
 
-                            <Border x:Name="ExpandedBatteryBadge"
+                            <Border x:Name="CompactBatteryBadge"
                                     Background="#12FFFFFF"
                                     BorderBrush="#1FFFFFFF"
                                     BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="6,2"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,10,0">
+                                    CornerRadius="5"
+                                    Padding="5,2"
+                                    VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock x:Name="ExpandedBatteryText"
+                                    <TextBlock x:Name="CompactBatteryText"
                                                Text="{Binding BatteryText}"
-                                               FontSize="10"
+                                               FontSize="9"
                                                FontWeight="Bold"
                                                Foreground="#EBEBF5"
                                                VerticalAlignment="Center"/>
-                                    <!-- Monochrome Thin Charging Bolt Path (No emoji) -->
-                                    <Path x:Name="ExpandedChargingBoltPath"
-                                          Width="8" Height="10"
+                                    <!-- Monochrome Thin Charging Bolt Path -->
+                                    <Path x:Name="CompactChargingBoltPath"
+                                          Width="7" Height="9"
                                           Stretch="Uniform"
                                           Stroke="#30D158"
                                           StrokeThickness="1.2"
@@ -373,24 +413,116 @@
                                           Data="M 3.5,0.5 L 1,5.2 H 3.5 L 2.8,9.5 L 6.8,4.5 H 4.2 Z"/>
                                 </StackPanel>
                             </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 2. Live Notification Toast Row (Width 340, Height 58, 3.5s auto-dismiss) -->
+                    <Grid x:Name="CompactToastContent" Visibility="Collapsed" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- App Badge / Icon -->
+                        <Border x:Name="CompactToastBadgeBorder" Grid.Column="0" Width="30" Height="30" CornerRadius="15" Background="#1E30D158" VerticalAlignment="Center" Margin="2,0,8,0">
+                            <TextBlock x:Name="CompactToastAppInitial" Text="W" FontWeight="Bold" FontSize="14" Foreground="#30D158" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Title & Message Snippet -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="CompactToastSender" Text="WhatsApp" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="CompactToastTime" Text="now" FontSize="9" Foreground="#8E8E93" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="CompactToastMessage" Text="Sarah Miller: Hey, check this build!" FontSize="10" Foreground="#D1D1D6" TextTrimming="CharacterEllipsis" MaxWidth="210" Margin="0,1,0,0"/>
+                        </StackPanel>
+
+                        <!-- Dismiss Button (×) -->
+                        <Button x:Name="CompactToastDismissBtn" Grid.Column="2" Click="OnDismissToastClicked" Width="20" Height="20" Background="#1C1C1E" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="10">
+                                        <TextBlock Text="×" FontSize="11" Foreground="#8E8E93" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Grid>
+
+                <!-- ========================================== -->
+                <!-- EXPANDED VIEW: Unified Carousel & MicroDock-->
+                <!-- ========================================== -->
+                <Grid x:Name="ExpandedView" Visibility="Collapsed" Opacity="0">
+                    <Grid.RowDefinitions>
+                        <!-- Row 0: Top Center Status Header & Top Right Visualizer (32px) -->
+                        <RowDefinition Height="32"/>
+                        <!-- Row 1: Carousel Content Area with Chevrons (*) -->
+                        <RowDefinition Height="*"/>
+                        <!-- Row 2: Morphing Bottom Pagination Dots <-> Micro Dock (24px) -->
+                        <RowDefinition Height="24"/>
+                        <!-- Row 3: Subtle Pixel Pet Track (18px) -->
+                        <RowDefinition Height="18"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- ROW 0: TOP CENTER STATUS HEADER & TOP RIGHT AUDIO WAVEFORM -->
+                    <Grid Grid.Row="0" Margin="14,6,14,0" VerticalAlignment="Top">
+                        <!-- Left: Slide Title or Back / Quick Tag -->
+                        <TextBlock x:Name="TopSlideTitle" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#8E8E93" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+                        <!-- Center: Mini Circular Progress Ring + Real-Time Date & Time Text -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <!-- Mini Circular Progress Ring (14x14px, red/orange #FF453A) -->
+                            <Grid Width="14" Height="14" Margin="0,0,6,0" VerticalAlignment="Center">
+                                <Ellipse Stroke="#2C2C2E" StrokeThickness="2"/>
+                                <Path x:Name="TopMiniProgressArc"
+                                      Stroke="#FF453A"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Data="M 7,1 A 6,6 0 1,1 6.99,1"/>
+                            </Grid>
+
+                            <!-- Date Text ("Sat 24 Oct 2026 ") -->
+                            <TextBlock x:Name="TopHeaderDate"
+                                       Text="{Binding TopHeaderDateText}"
+                                       FontSize="11"
+                                       FontWeight="Medium"
+                                       Foreground="#D1D1D6"
+                                       VerticalAlignment="Center"/>
+
+                            <!-- Time Text ("12:42" Bold White) -->
+                            <TextBlock x:Name="TopHeaderTime"
+                                       Text="{Binding TopHeaderTimeText}"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="#FFFFFF"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Right: 5-Bar Audio Waveform Visualizer & Minimize Button (—) -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <!-- Audio Waveform (5 vertical bars) -->
+                            <StackPanel x:Name="ExpandedVisualizer" Orientation="Horizontal" Height="12" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border x:Name="EqBar1" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="4"/>
+                                <Border x:Name="EqBar2" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="10"/>
+                                <Border x:Name="EqBar3" Width="2" Margin="1,0" CornerRadius="1" Background="#30D158" VerticalAlignment="Bottom" Height="12"/>
+                                <Border x:Name="EqBar4" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="8"/>
+                                <Border x:Name="EqBar5" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="5"/>
+                            </StackPanel>
 
                             <!-- Minimize Button (—) -->
                             <Button Click="OnMinimizeClicked"
-                                    Width="22" Height="22"
-                                    Background="#1C1C22"
+                                    Width="18" Height="18"
+                                    Background="#1A1A1E"
                                     BorderThickness="0"
                                     Cursor="Hand"
-                                    ToolTip="Minimize to Compact View">
+                                    ToolTip="Minimize to Compact Capsule">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
-                                        <Border x:Name="MinBorder" Background="{TemplateBinding Background}" CornerRadius="11">
-                                            <TextBlock Text="—"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"
-                                                       Foreground="#8E8E93"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,-2,0,0"/>
+                                        <Border x:Name="MinBorder" Background="{TemplateBinding Background}" CornerRadius="9">
+                                            <TextBlock Text="—" FontSize="9" FontWeight="Bold" Foreground="#8E8E93" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
@@ -404,114 +536,125 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- ROW 1: CONTENT AREA -->
-                    <Grid Grid.Row="1" Margin="14,2,14,2">
-                        <!-- TAB 1: MUSIC CONTENT -->
-                        <Grid x:Name="MediaTabContent" Visibility="Visible">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                    <!-- ROW 1: CAROUSEL CONTENT AREA WITH CHEVRON NAVIGATION (< and >) -->
+                    <Grid Grid.Row="1" Margin="8,0,8,0">
+                        <!-- Left Chevron Button (<) -->
+                        <Button x:Name="PrevSlideButton"
+                                Style="{StaticResource CarouselChevronButtonStyle}"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                Panel.ZIndex="10"
+                                Click="OnPrevSlideClicked"
+                                ToolTip="Previous Slide">
+                            <Path Data="M 13,6 L 8,11 L 13,16"
+                                  Stroke="#C7C7CC"
+                                  StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"/>
+                        </Button>
 
-                            <!-- Top Section: Media Card (Artwork, Details / Placeholder, Controls) -->
-                            <Grid Grid.Row="0">
+                        <!-- Right Chevron Button (>) -->
+                        <Button x:Name="NextSlideButton"
+                                Style="{StaticResource CarouselChevronButtonStyle}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Panel.ZIndex="10"
+                                Click="OnNextSlideClicked"
+                                ToolTip="Next Slide">
+                            <Path Data="M 9,6 L 14,11 L 9,16"
+                                  Stroke="#C7C7CC"
+                                  StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"/>
+                        </Button>
+
+                        <!-- Center Carousel Host (6 SLIDES) -->
+                        <Grid x:Name="CarouselHost" Margin="26,0,26,0" VerticalAlignment="Center">
+
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 0: MUSIC PLAYER + SPLIT-VIEW LIVE SYNCED LYRICS   -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlideMusic" Visibility="Visible">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="62"/>
+                                    <!-- Player Column -->
                                     <ColumnDefinition Width="*"/>
+                                    <!-- Split-View Lyrics Column (Visible when _isLyricsOpen) -->
+                                    <ColumnDefinition x:Name="LyricsColumn" Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Squircle Album Artwork (60x60px, CornerRadius 12) -->
-                                <Border x:Name="AlbumArtBorder"
-                                        Grid.Column="0"
-                                        Width="60" Height="60"
-                                        CornerRadius="12"
-                                        Background="#16161A"
-                                        BorderBrush="#20FFFFFF"
-                                        BorderThickness="1"
-                                        ClipToBounds="True"
-                                        VerticalAlignment="Center">
-                                    <Grid>
-                                        <!-- Fallback Vinyl / Note Icon -->
-                                        <Viewbox Width="26" Height="26" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Viewbox.Style>
-                                                <Style TargetType="Viewbox">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding MediaInfo.Thumbnail}" Value="{x:Null}">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Viewbox.Style>
-                                            <Canvas Width="24" Height="24">
-                                                <Path Fill="#636366" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,11A1,1 0 0,1 13,12A1,1 0 0,1 12,13A1,1 0 0,1 11,12A1,1 0 0,1 12,11Z"/>
-                                            </Canvas>
-                                        </Viewbox>
-                                        <!-- Track Thumbnail -->
-                                        <Image Source="{Binding MediaInfo.Thumbnail}" Stretch="UniformToFill"/>
-                                    </Grid>
-                                </Border>
-
-                                <!-- Track Details, Visualizer, Scrubber, & Balanced Controls -->
-                                <Grid Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <!-- Column 1: Music Player Area -->
+                                <Grid Grid.Column="0" VerticalAlignment="Center">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Top: Song Title, Artist & Audio Visualizer in top right -->
+                                    <!-- Top: Album Artwork + Title & Artist -->
                                     <Grid Grid.Row="0">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="58"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Active Media Info -->
-                                        <StackPanel x:Name="ActiveMediaDetails" Grid.Column="0" VerticalAlignment="Center" Visibility="Visible">
-                                            <TextBlock Text="{Binding MediaInfo.Title}"
-                                                       FontSize="13"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#FFFFFF"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       MaxWidth="230"/>
-                                            <TextBlock Text="{Binding MediaInfo.Artist}"
-                                                       FontSize="10"
-                                                       FontWeight="Normal"
-                                                       Foreground="#8E8E93"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       MaxWidth="230"
-                                                       Margin="0,1,0,0"/>
-                                        </StackPanel>
+                                        <!-- Album Artwork (58x58px CornerRadius 12) -->
+                                        <Border x:Name="AlbumArtBorder"
+                                                Width="58" Height="58"
+                                                CornerRadius="12"
+                                                Background="#16161A"
+                                                BorderBrush="#25FFFFFF"
+                                                BorderThickness="1"
+                                                ClipToBounds="True"
+                                                VerticalAlignment="Center">
+                                            <Grid>
+                                                <!-- Fallback Vinyl / Note Icon -->
+                                                <Viewbox Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Viewbox.Style>
+                                                        <Style TargetType="Viewbox">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding MediaInfo.Thumbnail}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Viewbox.Style>
+                                                    <Canvas Width="24" Height="24">
+                                                        <Path Fill="#636366" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,11A1,1 0 0,1 13,12A1,1 0 0,1 12,13A1,1 0 0,1 11,12A1,1 0 0,1 12,11Z"/>
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <Image Source="{Binding MediaInfo.Thumbnail}" Stretch="UniformToFill"/>
+                                            </Grid>
+                                        </Border>
 
-                                        <!-- No Media Placeholder (Centered empty state when !hasActiveMedia) -->
-                                        <StackPanel x:Name="NoMediaPlaceholder" Grid.Column="0" VerticalAlignment="Center" Visibility="Collapsed">
-                                            <TextBlock Text="No Media Playing"
-                                                       FontSize="13"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#FFFFFF"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="Open Spotify or browser to play audio"
-                                                       FontSize="10"
-                                                       FontWeight="Normal"
-                                                       Foreground="#8E8E93"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Margin="0,1,0,0"/>
-                                        </StackPanel>
+                                        <!-- Details -->
+                                        <Grid Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <StackPanel x:Name="ActiveMediaDetails" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding MediaInfo.Title}"
+                                                           FontSize="15"
+                                                           FontWeight="Bold"
+                                                           Foreground="#FFFFFF"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="220"/>
+                                                <TextBlock Text="{Binding MediaInfo.Artist}"
+                                                           FontSize="12"
+                                                           FontWeight="Normal"
+                                                           Foreground="#8E8E93"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="220"
+                                                           Margin="0,2,0,0"/>
+                                            </StackPanel>
 
-                                        <!-- Expanded Audio Visualizer -->
-                                        <StackPanel x:Name="ExpandedVisualizer" Grid.Column="1" Orientation="Horizontal" Height="14" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <Border x:Name="EqBar1" Width="2.5" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="5"/>
-                                            <Border x:Name="EqBar2" Width="2.5" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="12"/>
-                                            <Border x:Name="EqBar3" Width="2.5" Margin="1,0" CornerRadius="1" Background="#30D158" VerticalAlignment="Bottom" Height="14"/>
-                                            <Border x:Name="EqBar4" Width="2.5" Margin="1,0" CornerRadius="1" Background="#30D158" VerticalAlignment="Bottom" Height="9"/>
-                                            <Border x:Name="EqBar5" Width="2.5" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="6"/>
-                                            <Border x:Name="EqBar6" Width="2.5" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="11"/>
-                                        </StackPanel>
+                                            <!-- No Media State -->
+                                            <StackPanel x:Name="NoMediaPlaceholder" VerticalAlignment="Center" Visibility="Collapsed">
+                                                <TextBlock Text="No Media Playing" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                                <TextBlock Text="Open Spotify or browser to play" FontSize="11" Foreground="#8E8E93" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </Grid>
 
-                                    <!-- Middle: Interactive Progress Scrubber Bar with left & right time duration -->
-                                    <Grid x:Name="MediaProgressBar" Grid.Row="1" Margin="0,6,0,4">
+                                    <!-- Middle: Interactive Scrubber Bar (01:53, Track #3A3A3C, -01:52) -->
+                                    <Grid x:Name="MediaProgressBar" Grid.Row="1" Margin="0,8,0,6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
@@ -524,373 +667,816 @@
                                               MouseLeftButtonUp="OnScrubberMouseUp"
                                               MouseEnter="OnScrubberMouseEnter"
                                               MouseLeave="OnScrubberMouseLeave">
-                                            <Border x:Name="ScrubberTrackBackground" Height="4" Background="#20FFFFFF" CornerRadius="2" VerticalAlignment="Center" ClipToBounds="True">
-                                                <Border x:Name="ScrubberFill" Background="#E5E5EA" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                            <Border x:Name="ScrubberTrackBackground" Height="4" Background="#3A3A3C" CornerRadius="2" VerticalAlignment="Center" ClipToBounds="True">
+                                                <Border x:Name="ScrubberFill" Background="#FFFFFF" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
                                             </Border>
                                         </Grid>
                                         <TextBlock Grid.Column="2" x:Name="TxtRemainingTime" Text="-00:00" MinWidth="32" TextAlignment="Right" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </Grid>
 
-                                    <!-- Bottom: Proportionally Balanced Controls (Prev, 30x30 Glass Play/Pause, Next) -->
-                                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <!-- Prev Track -->
-                                        <Button x:Name="BtnPrevTrack" Command="{Binding PrevTrackCommand}" Width="28" Height="28" Margin="6,0" Style="{StaticResource MediaControlButtonStyle}">
-                                            <Path Fill="#C7C7CC" HorizontalAlignment="Center" VerticalAlignment="Center" Width="11" Height="11" Stretch="Uniform"
-                                                  Data="M 3,3.5 V 10.5 M 10.5,3.5 L 4.5,7 L 10.5,10.5 Z"/>
-                                        </Button>
-
-                                        <!-- Play / Pause Button (Transparent Glass Button 30x30px) -->
-                                        <Button x:Name="BtnPlayPause" Command="{Binding TogglePlayPauseCommand}" Style="{StaticResource GlassCircleButtonStyle}" Margin="6,0">
-                                            <Path x:Name="PlayPauseGlyph" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Width="10" Height="10" Stretch="Uniform"
-                                                  Data="M 5,3.5 L 11.5,7.5 L 5,11.5 Z"/>
-                                        </Button>
-
-                                        <!-- Next Track -->
-                                        <Button x:Name="BtnNextTrack" Command="{Binding NextTrackCommand}" Width="28" Height="28" Margin="6,0" Style="{StaticResource MediaControlButtonStyle}">
-                                            <Path Fill="#C7C7CC" HorizontalAlignment="Center" VerticalAlignment="Center" Width="11" Height="11" Stretch="Uniform"
-                                                  Data="M 11,3.5 V 10.5 M 3.5,3.5 L 9.5,7 L 3.5,10.5 Z"/>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Grid>
-
-                            <!-- Bottom Section: Minimalist Dual Controls (Volume & Brightness with MacThinSliderStyle) -->
-                            <Border Grid.Row="1" Background="#0CFFFFFF" CornerRadius="7" Padding="8,3" Margin="0,4,0,0">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="10"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Left: Volume Control -->
-                                    <Grid Grid.Column="0">
+                                    <!-- Bottom: Controls Row (Lyrics Quote, Clean Prev/Play/Next, Volume) -->
+                                    <Grid Grid.Row="2">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="28"/>
-                                        </Grid.ColumnDefinitions>
-                                        <!-- Thin Speaker Path (Monochrome, no emoji) -->
-                                        <Path Width="12" Height="12" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
-                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
-                                              Data="M 1,4 H 3.5 L 7,1 V 11 L 3.5,8 H 1 Z M 9,3.5 C 10.5,5 10.5,7 9,8.5"/>
-                                        <!-- Mac Thin Slider -->
-                                        <Slider Grid.Column="1" x:Name="VolumeSlider" Style="{StaticResource MacThinSliderStyle}"
-                                                Minimum="0" Maximum="100" Value="50" Margin="6,0" VerticalAlignment="Center"
-                                                ValueChanged="OnVolumeSliderValueChanged"/>
-                                        <!-- Volume Percent Text -->
-                                        <TextBlock Grid.Column="2" x:Name="TxtVolumePercent" Text="50%" FontSize="9" Foreground="#8E8E93"
-                                                   VerticalAlignment="Center" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <!-- Right: Brightness Control -->
-                                    <Grid Grid.Column="2">
-                                        <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="28"/>
                                         </Grid.ColumnDefinitions>
-                                        <!-- Thin Sun Path (Monochrome, no emoji) -->
-                                        <Path Width="12" Height="12" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
-                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"
-                                              Data="M 6,3 A 3,3 0 1,1 5.99,3 Z M 6,0.5 V 1.8 M 6,10.2 V 11.5 M 0.5,6 H 1.8 M 10.2,6 H 11.5 M 2.1,2.1 L 3,3 M 9,9 L 9.9,9.9 M 2.1,9.9 L 3,9 M 9,3 L 9.9,2.1"/>
-                                        <!-- Mac Thin Slider -->
-                                        <Slider Grid.Column="1" x:Name="BrightnessSlider" Style="{StaticResource MacThinSliderStyle}"
-                                                Minimum="0" Maximum="100" Value="75" Margin="6,0" VerticalAlignment="Center"
-                                                ValueChanged="OnBrightnessSliderValueChanged"/>
-                                        <!-- Brightness Percent Text -->
-                                        <TextBlock Grid.Column="2" x:Name="TxtBrightnessPercent" Text="75%" FontSize="9" Foreground="#8E8E93"
-                                                   VerticalAlignment="Center" HorizontalAlignment="Right"/>
+
+                                        <!-- Left: Lyrics Quote Button (💬 with quotation mark) -->
+                                        <Button x:Name="BtnLyricsToggle"
+                                                Grid.Column="0"
+                                                Click="OnLyricsToggleClicked"
+                                                Width="26" Height="26"
+                                                Style="{StaticResource CleanMediaButtonStyle}"
+                                                ToolTip="Toggle Live Synced Lyrics">
+                                            <Border x:Name="LyricsToggleBorder" Background="#14FFFFFF" CornerRadius="13" Padding="5">
+                                                <Path x:Name="LyricsQuoteGlyph"
+                                                      Fill="#8E8E93"
+                                                      Width="14" Height="14"
+                                                      Stretch="Uniform"
+                                                      Data="M 3,4 C 3,2.9 3.9,2 5,2 H 15 C 16.1,2 17,2.9 17,4 V 12 C 17,13.1 16.1,14 15,14 H 7 L 3,18 Z M 7,6 H 8.5 M 11.5,6 H 13 M 7,9 H 13"/>
+                                            </Border>
+                                        </Button>
+
+                                        <!-- Center: Clean Vector Playback Buttons (No big white circle) -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <!-- Prev -->
+                                            <Button x:Name="BtnPrevTrack" Command="{Binding PrevTrackCommand}" Width="26" Height="26" Margin="6,0" Style="{StaticResource CleanMediaButtonStyle}">
+                                                <Path Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Width="12" Height="12" Stretch="Uniform"
+                                                      Data="M 3,3.5 V 10.5 M 10.5,3.5 L 4.5,7 L 10.5,10.5 Z"/>
+                                            </Button>
+
+                                            <!-- Play / Pause -->
+                                            <Button x:Name="BtnPlayPause" Command="{Binding TogglePlayPauseCommand}" Width="30" Height="30" Margin="6,0" Style="{StaticResource CleanMediaButtonStyle}">
+                                                <Path x:Name="PlayPauseGlyph" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Width="13" Height="13" Stretch="Uniform"
+                                                      Data="M 5,3.5 L 11.5,7.5 L 5,11.5 Z"/>
+                                            </Button>
+
+                                            <!-- Next -->
+                                            <Button x:Name="BtnNextTrack" Command="{Binding NextTrackCommand}" Width="26" Height="26" Margin="6,0" Style="{StaticResource CleanMediaButtonStyle}">
+                                                <Path Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Width="12" Height="12" Stretch="Uniform"
+                                                      Data="M 11,3.5 V 10.5 M 3.5,3.5 L 9.5,7 L 3.5,10.5 Z"/>
+                                            </Button>
+                                        </StackPanel>
+
+                                        <!-- Right: Volume Icon Button (🔊) -->
+                                        <Button x:Name="BtnVolumeToggle"
+                                                Grid.Column="2"
+                                                Click="OnVolumeIconClicked"
+                                                Width="26" Height="26"
+                                                Style="{StaticResource CleanMediaButtonStyle}"
+                                                ToolTip="Volume &amp; Brightness Quick Sliders">
+                                            <Path Width="13" Height="13" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"
+                                                  Data="M 1,4 H 3.5 L 7,1 V 11 L 3.5,8 H 1 Z M 9,3.5 C 10.5,5 10.5,7 9,8.5"/>
+                                        </Button>
                                     </Grid>
                                 </Grid>
-                            </Border>
-                        </Grid>
 
-                        <!-- TAB 2: FILES (TRANSIT SHELF) -->
-                        <Grid x:Name="FileShelfTabContent" Visibility="Collapsed">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                                <!-- Column 2: Conditional Split-View Live Synced Lyrics (Width 220, Capsule widens to 590) -->
+                                <Border x:Name="LyricsSplitPanel"
+                                        Grid.Column="1"
+                                        Width="220"
+                                        Margin="14,0,0,0"
+                                        Background="#121216"
+                                        BorderBrush="#24FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="14"
+                                        Padding="12,10"
+                                        Visibility="Collapsed">
+                                    <Grid VerticalAlignment="Center">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
 
-                            <!-- Shelf Header -->
-                            <Grid Grid.Row="0" Margin="0,0,0,4">
-                                <TextBlock Text="FILE TRANSIT SHELF (OLE DRAG &amp; DROP)" FontSize="9" FontWeight="Bold" Foreground="#636366" VerticalAlignment="Center"/>
-                                <Button x:Name="ClearFilesButton" Click="OnClearFilesClicked" Content="Clear All" FontSize="9"
-                                        Foreground="#8E8E93" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" Cursor="Hand"/>
+                                        <TextBlock Text="LIVE SYNCED LYRICS" FontSize="9" FontWeight="Bold" Foreground="#FF9F0A" Margin="0,0,0,6"/>
+
+                                        <!-- Active Lyric Line (15px Bold White, max 2 lines) -->
+                                        <TextBlock Grid.Row="1"
+                                                   Text="{Binding ActiveLyricLine}"
+                                                   FontSize="14"
+                                                   FontWeight="Bold"
+                                                   Foreground="#FFFFFF"
+                                                   TextWrapping="Wrap"
+                                                   LineHeight="18"
+                                                   Margin="0,0,0,4"/>
+
+                                        <!-- Next Lyric Line (13px #8E8E93) -->
+                                        <TextBlock Grid.Row="2"
+                                                   Text="{Binding NextLyricLine}"
+                                                   FontSize="12"
+                                                   FontWeight="Normal"
+                                                   Foreground="#8E8E93"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,2"/>
+
+                                        <!-- Following Line (11px #636366) -->
+                                        <TextBlock Grid.Row="3"
+                                                   Text="{Binding LaterLyricLine}"
+                                                   FontSize="10"
+                                                   Foreground="#636366"
+                                                   TextWrapping="Wrap"/>
+                                    </Grid>
+                                </Border>
                             </Grid>
 
-                            <!-- Content Box -->
-                            <Border Grid.Row="1" Background="#141418" BorderBrush="#24242C" BorderThickness="1" CornerRadius="10" Padding="8">
-                                <Grid>
-                                    <!-- Empty State Drop Target -->
-                                    <StackPanel x:Name="EmptyFilesView" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
-                                        <Path Stroke="#636366" StrokeThickness="1.2" Fill="Transparent" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"
-                                              Data="M 2,4 C 2,2.9 2.9,2 4,2 H 7 L 9,4 H 14 C 15.1,4 16,4.9 16,6 V 12 C 16,13.1 15.1,14 14,14 H 4 C 2.9,14 2,13.1 2,12 Z"/>
-                                        <TextBlock x:Name="EmptyFilesText" Text="Drop files here to hold" FontSize="11" Foreground="#8E8E93" VerticalAlignment="Center"/>
-                                    </StackPanel>
-
-                                    <!-- List of Stored Files -->
-                                    <ScrollViewer x:Name="FilesListScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                                                  HorizontalAlignment="Stretch" Visibility="Collapsed">
-                                        <ItemsControl ItemsSource="{Binding FileItems}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Margin="0,0,8,0" Background="#1E1E24" BorderBrush="#383842" BorderThickness="1" CornerRadius="8"
-                                                            Padding="8,4" VerticalAlignment="Center" Cursor="Hand" ToolTip="Click and drag out to copy to other apps"
-                                                            PreviewMouseLeftButtonDown="OnFileCardMouseDown"
-                                                            PreviewMouseMove="OnFileCardMouseMove">
-                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                            <StackPanel VerticalAlignment="Center" MaxWidth="90">
-                                                                <TextBlock Text="{Binding FileName}" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding FileSizeFormatted}" FontSize="9" Foreground="#8E8E93"/>
-                                                            </StackPanel>
-                                                            <Button Command="{Binding DataContext.RemoveFileItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}" Margin="6,0,0,0" Width="16" Height="16" Background="Transparent" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
-                                                                <Button.Template>
-                                                                    <ControlTemplate TargetType="Button">
-                                                                        <Border Background="#2A2A32" CornerRadius="8">
-                                                                            <TextBlock Text="×" FontSize="10" Foreground="#C7C7CC" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </Button.Template>
-                                                            </Button>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </Grid>
-                            </Border>
-                        </Grid>
-
-                        <!-- TAB 3: TOOLS (POMODORO & CLIPBOARD) -->
-                        <Grid x:Name="QuickToolsTabContent" Visibility="Collapsed">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="130"/>
-                                <ColumnDefinition Width="1"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Left: Pomodoro Timer -->
-                            <Border Grid.Column="0" Background="#141418" BorderBrush="#24242C" BorderThickness="1" CornerRadius="10" Padding="8,5">
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="POMODORO FOCUS" FontSize="9" FontWeight="Bold" Foreground="#FF453A" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{Binding PomoTimeRemaining}" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,1,0,3"/>
-
-                                    <!-- Control Buttons (30x30 glass button, 12px white icon) -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
-                                        <Button x:Name="BtnPomodoroPlay" Click="OnPomodoroPlayClicked" Style="{StaticResource GlassCircleButtonStyle}" Width="30" Height="30" Margin="3,0">
-                                            <Path x:Name="PomodoroPlayGlyph" Fill="#FFFFFF" Width="10" Height="10" Stretch="Uniform"
-                                                  Data="M 5,3.5 L 11.5,7.5 L 5,11.5 Z"/>
-                                        </Button>
-                                        <Button Click="OnPomodoroResetClicked" Style="{StaticResource GlassCircleButtonStyle}" Width="26" Height="26" Margin="3,0">
-                                            <Path Stroke="#8E8E93" StrokeThickness="1.2" Width="11" Height="11" Stretch="Uniform" Fill="Transparent"
-                                                  Data="M 2,6 A 4,4 0 1,1 6,10 L 4.8,8.8"/>
-                                        </Button>
-                                    </StackPanel>
-
-                                    <!-- Preset Buttons (Hidden when running) -->
-                                    <StackPanel x:Name="PomodoroPresetPanel" Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <Button Command="{Binding SetPomoPresetCommand}" CommandParameter="25" Content="25m" FontSize="8" Padding="5,1" Margin="1,0" Background="#202026" Foreground="#AEAEB2" BorderThickness="0" Cursor="Hand"/>
-                                        <Button Command="{Binding SetPomoPresetCommand}" CommandParameter="15" Content="15m" FontSize="8" Padding="5,1" Margin="1,0" Background="#202026" Foreground="#AEAEB2" BorderThickness="0" Cursor="Hand"/>
-                                        <Button Command="{Binding SetPomoPresetCommand}" CommandParameter="5" Content="5m" FontSize="8" Padding="5,1" Margin="1,0" Background="#202026" Foreground="#AEAEB2" BorderThickness="0" Cursor="Hand"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Divider -->
-                            <Border Grid.Column="1" Background="#24242C" Margin="6,0"/>
-
-                            <!-- Right: Clipboard History & Telemetry -->
-                            <Grid Grid.Column="2">
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 1: CIRCULAR POMODORO TIMER + FLEXIBLE TIME ADJUST  -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlidePomodoro" Visibility="Collapsed">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- Clipboard Header -->
-                                <Grid Grid.Row="0" Margin="0,0,0,2">
-                                    <TextBlock Text="CLIPBOARD HISTORY (10 RECENT)" FontSize="9" FontWeight="Bold" Foreground="#636366"/>
+                                <!-- Title: "Pomodoro" (14px Bold White) -->
+                                <TextBlock Grid.Row="0" Text="Pomodoro" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,6"/>
+
+                                <!-- Center Row: Left Circular Ring (78x78px) + Right Big Time (25:00) -->
+                                <Grid Grid.Row="1" Margin="0,2,0,8" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="84"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left: Circular Progress Ring (78x78px, Stroke 6px #FF3B30) -->
+                                    <Grid Grid.Column="0" Width="78" Height="78" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <!-- Background Ring -->
+                                        <Ellipse Stroke="#2C2C2E" StrokeThickness="6"/>
+
+                                        <!-- Animated Progress Arc -->
+                                        <Path x:Name="PomodoroProgressArc"
+                                              Stroke="#FF3B30"
+                                              StrokeThickness="6"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              Data="M 39,3 A 36,36 0 1,1 38.99,3"/>
+
+                                        <!-- Stopwatch Vector Glyph in Center -->
+                                        <Path Fill="#FFFFFF" Width="18" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Data="M 8,2 H 12 M 10,2 V 4 M 10,7 V 11 L 13,11 M 10,4 A 7,7 0 1,1 9.99,4 Z"/>
+                                    </Grid>
+
+                                    <!-- Right: Big Time Display (32px Bold White) & Reset (↻) -->
+                                    <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- Time Display with Scroll Wheel & Click Support -->
+                                            <TextBlock x:Name="TxtPomodoroBigTime"
+                                                       Text="{Binding PomoTimeRemaining}"
+                                                       FontSize="32"
+                                                       FontWeight="Bold"
+                                                       Foreground="#FFFFFF"
+                                                       Cursor="Hand"
+                                                       PreviewMouseWheel="OnPomodoroTimeMouseWheel"
+                                                       MouseLeftButtonUp="OnPomodoroTimeClicked"
+                                                       ToolTip="Scroll wheel to adjust (+/- 1m, Shift+Scroll for +/- 5m). Click to edit."/>
+
+                                            <!-- Reset Button (↻) -->
+                                            <Button Click="OnPomodoroResetClicked"
+                                                    Width="24" Height="24"
+                                                    Margin="8,0,0,0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand"
+                                                    VerticalAlignment="Center"
+                                                    ToolTip="Reset Timer">
+                                                <Path Stroke="#8E8E93" StrokeThickness="1.5" Width="12" Height="12" Stretch="Uniform" Fill="Transparent"
+                                                      Data="M 2,6 A 4,4 0 1,1 6,10 L 4.8,8.8"/>
+                                            </Button>
+                                        </StackPanel>
+
+                                        <!-- Subtext: "Focus time" -->
+                                        <TextBlock Text="{Binding PomoModeName}" FontSize="12" Foreground="#8E8E93" Margin="2,1,0,0"/>
+                                    </StackPanel>
                                 </Grid>
 
-                                <!-- Clipboard List -->
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <ItemsControl x:Name="ClipboardList" ItemsSource="{Binding ClipboardItems}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Margin="0,1" Background="#18181E" BorderBrush="#2C2C34" BorderThickness="1" CornerRadius="6"
-                                                        Padding="6,3" Cursor="Hand" ToolTip="Click to re-copy to Windows clipboard"
-                                                        MouseLeftButtonUp="OnClipboardItemClick">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
+                                <!-- Bottom Row: 3 Capsule Buttons ([ ☕ Short Break ], [ ▶ ]/[ ⏸ ], [ 🎯 Focus Time ]) -->
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <!-- 1. Left: [ ☕ Short Break ] -->
+                                    <Button Click="OnPomodoroShortBreakClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Margin="4,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="☕" FontSize="10" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Short Break" FontSize="10"/>
+                                        </StackPanel>
+                                    </Button>
 
-                                                        <!-- 22x22px Thumbnail Image if item is image -->
-                                                        <Border Grid.Column="0" Width="22" Height="22" CornerRadius="4" Background="#24242A" Margin="0,0,6,0" ClipToBounds="True"
-                                                                Visibility="{Binding IsImage, Converter={StaticResource BoolToVis}}">
-                                                            <Image Source="{Binding ImagePreview}" Stretch="UniformToFill" Width="22" Height="22"/>
-                                                        </Border>
+                                    <!-- 2. Center: Red Accent [ ▶ ] / [ ⏸ ] (56x28px Background #FF3B30) -->
+                                    <Button Click="OnPomodoroPlayClicked" Width="56" Height="28" Margin="4,0" Cursor="Hand" BorderThickness="0" Background="Transparent" Style="{StaticResource CleanMediaButtonStyle}">
+                                        <Border x:Name="PlayBorder" Background="#FF3B30" CornerRadius="14" Width="56" Height="28">
+                                            <Path x:Name="PomodoroPlayGlyph" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Width="11" Height="11" Stretch="Uniform"
+                                                  Data="M 5,3.5 L 11.5,7.5 L 5,11.5 Z"/>
+                                        </Border>
+                                    </Button>
 
-                                                        <!-- Text: If IsImage, show 'Image Copied', else TextPreview -->
-                                                        <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="10" Foreground="#E5E5EA" TextTrimming="CharacterEllipsis">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Text" Value="{Binding TextPreview}"/>
+                                    <!-- 3. Right: [ 🎯 Focus Time ] -->
+                                    <Button Click="OnPomodoroFocusClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Margin="4,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="🎯" FontSize="10" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Focus Time" FontSize="10"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 2: TODOLIST (1/4) + EXPANDABLE CALENDAR & TIMELINE -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlideTodoList" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Title: "Todo" (Bold White) + "List" (Bold Green #30D158) -->
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Todo" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                    <TextBlock Text="List" FontSize="14" FontWeight="Bold" Foreground="#30D158" Margin="2,0,0,0"/>
+                                </StackPanel>
+
+                                <!-- Content Grid: Column 1 (Summary), Column 2 (Tasks), Column 3 (Calendar Timeline) -->
+                                <Grid Grid.Row="1" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <!-- Column 1: Summary & Action Buttons (Width 140) -->
+                                        <ColumnDefinition Width="140"/>
+                                        <!-- Column 2: Task List (Width 220) -->
+                                        <ColumnDefinition Width="220"/>
+                                        <!-- Column 3: Conditional Expandable Calendar & 24h Timeline -->
+                                        <ColumnDefinition x:Name="CalendarColumn" Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- COLUMN 1: PROGRESS 1/4 + CALENDAR TOGGLE & BUTTONS -->
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
+                                        <!-- Big 1/4 & Calendar Toggle Button (📅) -->
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding TodoProgressText}" FontSize="32" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+
+                                            <!-- Calendar Toggle Button (28x28 CornerRadius 14) -->
+                                            <Button x:Name="BtnCalendarToggle"
+                                                    Click="OnCalendarToggleClicked"
+                                                    Width="28" Height="28"
+                                                    Margin="10,0,0,0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand"
+                                                    Style="{StaticResource CleanMediaButtonStyle}"
+                                                    ToolTip="Toggle Calendar &amp; 24h Timeline">
+                                                <Border x:Name="CalBorder" Background="#1C1C1E" CornerRadius="14" Width="28" Height="28">
+                                                    <Path x:Name="CalGlyph" Stroke="#8E8E93" StrokeThickness="1.2" Width="13" Height="13" Stretch="Uniform" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Data="M 2,4 C 2,2.9 2.9,2 4,2 H 12 C 13.1,2 14,2.9 14,4 V 12 C 14,13.1 13.1,14 12,14 H 4 C 2.9,14 2,13.1 2,12 Z M 2,6 H 14 M 5,1 V 3 M 11,1 V 3"/>
+                                                </Border>
+                                            </Button>
+                                        </StackPanel>
+
+                                        <TextBlock Text="Task Done Today" FontSize="11" Foreground="#8E8E93" Margin="0,1,0,8"/>
+
+                                        <!-- Two Dark Capsule Buttons: [ ⊕ Add Task ] & [ ✎ Edit Task ] -->
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Command="{Binding AddTaskCommand}" Style="{StaticResource DarkCapsuleButtonStyle}" Content="⊕ Add Task" Margin="0,0,4,0"/>
+                                            <Button Click="OnEditTaskClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✎ Edit"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- COLUMN 2: TASK LIST WITH TIME RANGES & CHECKBOX -->
+                                    <Border Grid.Column="1" Background="#101014" BorderBrush="#1CFFFFFF" BorderThickness="1" CornerRadius="12" Padding="6" Height="125">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <ItemsControl ItemsSource="{Binding TodoTasks}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <!-- Task Item Container: If IsCompleted -> #1E30D158, else transparent -->
+                                                        <Border Margin="0,2" CornerRadius="10" Padding="6,4" Cursor="Hand" MouseLeftButtonUp="OnTaskItemClicked">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="Transparent"/>
                                                                     <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsImage}" Value="True">
-                                                                            <Setter Property="Text" Value="Image Copied"/>
-                                                                            <Setter Property="Foreground" Value="#0A84FF"/>
+                                                                        <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                            <Setter Property="Background" Value="#1E30D158"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
+                                                            </Border.Style>
 
-                                                        <!-- Timestamp -->
-                                                        <TextBlock Grid.Column="2" Text="{Binding Timestamp, StringFormat=HH:mm}" FontSize="8" Foreground="#636366" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                                    </Grid>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- Checkbox Circle -->
+                                                                <Border Width="16" Height="16" CornerRadius="8" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border">
+                                                                            <Setter Property="Background" Value="Transparent"/>
+                                                                            <Setter Property="BorderBrush" Value="#0A84FF"/>
+                                                                            <Setter Property="BorderThickness" Value="1.5"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                                    <Setter Property="Background" Value="#30D158"/>
+                                                                                    <Setter Property="BorderBrush" Value="#30D158"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
+                                                                    <!-- Checkmark -->
+                                                                    <Path Width="8" Height="6" Stretch="Uniform" Stroke="#FFFFFF" StrokeThickness="1.5" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                                        <Path.Style>
+                                                                            <Style TargetType="Path">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Path.Style>
+                                                                        <Path.Data>M 1,3 L 3.5,5.5 L 7,1</Path.Data>
+                                                                    </Path>
+                                                                </Border>
+
+                                                                <!-- Title & Time Range -->
+                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="#8E8E93"/>
+                                                                                        <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                    <TextBlock Text="{Binding TimeRange}" FontSize="9" Foreground="#8E8E93" Margin="0,1,0,0"/>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
+
+                                    <!-- COLUMN 3: CONDITIONAL EXPANDABLE CALENDAR & 24H TIMELINE -->
+                                    <Border x:Name="CalendarSplitPanel"
+                                            Grid.Column="2"
+                                            Width="220"
+                                            Margin="14,0,0,0"
+                                            Background="#121216"
+                                            BorderBrush="#24FFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="14"
+                                            Padding="10,8"
+                                            Visibility="Collapsed">
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Row 0: Month Header & [ Week | Month ] Capsule Toggle -->
+                                            <Grid Grid.Row="0" Margin="0,0,0,6">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="October 2026" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                                    <TextBlock Text=" ‹ ›" FontSize="11" Foreground="#8E8E93" Margin="4,0,0,0"/>
+                                                </StackPanel>
+
+                                                <!-- Toggle [ Week | Month ] -->
+                                                <Border HorizontalAlignment="Right" Background="#1C1C1E" CornerRadius="8" Padding="2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <RadioButton Content="Week" IsChecked="True" Style="{StaticResource SegmentedPillButtonStyle}" FontSize="9"/>
+                                                        <RadioButton Content="Month" Style="{StaticResource SegmentedPillButtonStyle}" FontSize="9"/>
+                                                    </StackPanel>
                                                 </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
+                                            </Grid>
 
-                                <!-- Telemetry Mini Bar (Monochrome thin paths, no emojis!) -->
-                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,3,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="CPU " FontSize="8" FontWeight="SemiBold" Foreground="#636366"/>
-                                    <TextBlock Text="{Binding CpuText}" FontSize="8" FontWeight="SemiBold" Foreground="#30D158" Margin="0,0,6,0"/>
+                                            <!-- Row 1: 7-Day Day Names (S M T W T F S) -->
+                                            <UniformGrid Grid.Row="1" Columns="7" Margin="0,2">
+                                                <TextBlock Text="S" FontSize="9" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="M" FontSize="9" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="T" FontSize="9" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="W" FontSize="9" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="T" FontSize="9" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="F" FontSize="9" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="S" FontSize="9" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                            </UniformGrid>
 
-                                    <TextBlock Text="RAM " FontSize="8" FontWeight="SemiBold" Foreground="#636366"/>
-                                    <TextBlock Text="{Binding RamText}" FontSize="8" FontWeight="SemiBold" Foreground="#0A84FF" Margin="0,0,6,0"/>
+                                            <!-- Row 2: 7-Day Dates (18 19 20 21 22 23 24) -->
+                                            <UniformGrid Grid.Row="2" Columns="7" Margin="0,2,0,8">
+                                                <TextBlock Text="18" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="19" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="20" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="21" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="22" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="23" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center"/>
+                                                <!-- Today: 24 circled in green #30D158 -->
+                                                <Border Width="18" Height="18" CornerRadius="9" Background="#30D158" HorizontalAlignment="Center">
+                                                    <TextBlock Text="24" FontSize="10" FontWeight="Bold" Foreground="#000000" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </UniformGrid>
 
-                                    <TextBlock Text="BAT " FontSize="8" FontWeight="SemiBold" Foreground="#636366"/>
-                                    <TextBlock Text="{Binding BatteryText}" FontSize="8" FontWeight="SemiBold" Foreground="#FFD60A"/>
-                                    <Path Width="6" Height="8" Stretch="Uniform" Stroke="#30D158" StrokeThickness="1.2" Fill="#30D158" Margin="2,0,0,0"
-                                          Visibility="{Binding IsChargingGlowVisible, Converter={StaticResource BoolToVis}}"
-                                          Data="M 3.5,0.5 L 1,5.2 H 3.5 L 2.8,9.5 L 6.8,4.5 H 4.2 Z"/>
+                                            <!-- Row 3: 24-Hour Timeline Bar -->
+                                            <StackPanel Grid.Row="3">
+                                                <Grid Margin="0,0,0,2">
+                                                    <TextBlock Text="00" FontSize="8" Foreground="#636366" HorizontalAlignment="Left"/>
+                                                    <TextBlock Text="06" FontSize="8" Foreground="#636366" Margin="45,0,0,0"/>
+                                                    <TextBlock Text="12" FontSize="8" Foreground="#636366" Margin="95,0,0,0"/>
+                                                    <TextBlock Text="18" FontSize="8" Foreground="#636366" Margin="145,0,0,0"/>
+                                                    <TextBlock Text="24" FontSize="8" Foreground="#636366" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <!-- Track with Tasks Pills & White Current Time Marker -->
+                                                <Grid Height="12">
+                                                    <Border Height="4" CornerRadius="2" Background="#24242A" VerticalAlignment="Center"/>
+                                                    <!-- Task 1 (07:00-08:00 Green) -->
+                                                    <Border Margin="52,0,0,0" HorizontalAlignment="Left" Width="14" Height="6" CornerRadius="3" Background="#30D158" VerticalAlignment="Center"/>
+                                                    <!-- Task 2 (10:30-11:15 Blue) -->
+                                                    <Border Margin="82,0,0,0" HorizontalAlignment="Left" Width="12" Height="6" CornerRadius="3" Background="#0A84FF" VerticalAlignment="Center"/>
+                                                    <!-- Task 3 (12:06 Orange) -->
+                                                    <Border Margin="98,0,0,0" HorizontalAlignment="Left" Width="14" Height="6" CornerRadius="3" Background="#FF9F0A" VerticalAlignment="Center"/>
+                                                    <!-- White Current Time Line -->
+                                                    <Border Margin="102,0,0,0" HorizontalAlignment="Left" Width="2" Height="10" Background="#FFFFFF" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 3: NOTIFICATION CENTER & LIVE TOAST TRIGGER        -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlideNotifications" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Title: "Notify" (Bold White) + "Center" (Bold Blue #0A84FF) -->
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Notify" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                    <TextBlock Text="Center" FontSize="14" FontWeight="Bold" Foreground="#0A84FF" Margin="2,0,0,0"/>
+                                </StackPanel>
+
+                                <!-- 2 Columns: Summary & Cards -->
+                                <Grid Grid.Row="1" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="140"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left Column: Unread Count + Bell + [ ✓ Read All ] + [ 🌙 Test Toast ] -->
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding UnreadNotificationCount}" FontSize="32" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+
+                                            <!-- Round Bell Button (🔔) -->
+                                            <Border Width="28" Height="28" CornerRadius="14" Background="#1C1C1E" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                <Path Stroke="#0A84FF" StrokeThickness="1.2" Width="13" Height="13" Stretch="Uniform" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      Data="M 6.5,1 C 4.5,1 3,2.5 3,4.5 V 8 L 1.5,10 H 11.5 L 10,8 V 4.5 C 10,2.5 8.5,1 6.5,1 Z M 5,11 C 5,11.8 5.7,12.5 6.5,12.5 C 7.3,12.5 8,11.8 8,11"/>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <TextBlock Text="Unread Alerts" FontSize="11" Foreground="#8E8E93" Margin="0,1,0,8"/>
+
+                                        <!-- Two Dark Capsule Buttons -->
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Command="{Binding ReadAllNotificationsCommand}" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✓ Read All" Margin="0,0,4,0"/>
+                                            <Button Click="OnTestToastClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🌙 Test Toast" ToolTip="Trigger live incoming notification toast"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Right Column: Scrollable List of Notification Cards -->
+                                    <Border Grid.Column="1" Background="#101014" BorderBrush="#1CFFFFFF" BorderThickness="1" CornerRadius="12" Padding="6" Height="125">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <ItemsControl ItemsSource="{Binding Notifications}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Margin="0,2" Background="#18181E" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="8,4">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- App Badge -->
+                                                                <Border Grid.Column="0" CornerRadius="4" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                                    <Border.Background>
+                                                                        <SolidColorBrush Color="{Binding AccentHex, Converter={x:Null}}"/>
+                                                                    </Border.Background>
+                                                                    <TextBlock Text="{Binding AppName}" FontSize="8" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                                                </Border>
+
+                                                                <!-- Title & Message Preview -->
+                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                                        <TextBlock Text="{Binding FormattedTime}" FontSize="8" Foreground="#636366" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock Text="{Binding Message}" FontSize="9" Foreground="#8E8E93" TextTrimming="CharacterEllipsis" MaxWidth="130" Margin="0,1,0,0"/>
+                                                                </StackPanel>
+
+                                                                <!-- Dismiss Button (×) -->
+                                                                <Button Grid.Column="2"
+                                                                        Command="{Binding DataContext.DismissNotificationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                        CommandParameter="{Binding}"
+                                                                        Width="16" Height="16"
+                                                                        Background="Transparent"
+                                                                        BorderThickness="0"
+                                                                        Cursor="Hand"
+                                                                        VerticalAlignment="Center">
+                                                                    <Button.Template>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <Border Background="#24242A" CornerRadius="8">
+                                                                                <TextBlock Text="×" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                                                                            </Border>
+                                                                        </ControlTemplate>
+                                                                    </Button.Template>
+                                                                </Button>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 4: HYDRATION & CONTROL CENTER (💧)                -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlideHydration" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Title: "Control" (Bold White) + "Center" (Bold Cyan #5AC8FA) -->
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Control" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                    <TextBlock Text="Center" FontSize="14" FontWeight="Bold" Foreground="#5AC8FA" Margin="2,0,0,0"/>
+                                </StackPanel>
+
+                                <Grid Grid.Row="1" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <!-- Left: Hydration Tracker & Camera Button (Width 160) -->
+                                        <ColumnDefinition Width="160"/>
+                                        <!-- Right: Sliders & Telemetry Badges (Width *) -->
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left Column: Hydration Tracker & Privacy Camera Mirror -->
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
+                                        <!-- Hydration Display (4/8 Glasses) -->
+                                        <TextBlock Text="{Binding HydrationText}" FontSize="20" FontWeight="Bold" Foreground="#5AC8FA"/>
+                                        <TextBlock Text="{Binding HydrationMlText}" FontSize="10" Foreground="#8E8E93" Margin="0,1,0,4"/>
+
+                                        <!-- 8 Interactive Glass Indicators (Clicking logs drink!) -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Cursor="Hand" MouseLeftButtonUp="OnHydrationClicked" ToolTip="Click to log +1 glass of water">
+                                            <Border Width="11" Height="14" CornerRadius="2" Background="#5AC8FA" Margin="1,0"/>
+                                            <Border Width="11" Height="14" CornerRadius="2" Background="#5AC8FA" Margin="1,0"/>
+                                            <Border Width="11" Height="14" CornerRadius="2" Background="#5AC8FA" Margin="1,0"/>
+                                            <Border Width="11" Height="14" CornerRadius="2" Background="#5AC8FA" Margin="1,0"/>
+                                            <Border Width="11" Height="14" CornerRadius="2" BorderBrush="#5AC8FA" BorderThickness="1" Background="Transparent" Margin="1,0"/>
+                                            <Border Width="11" Height="14" CornerRadius="2" BorderBrush="#5AC8FA" BorderThickness="1" Background="Transparent" Margin="1,0"/>
+                                            <Border Width="11" Height="14" CornerRadius="2" BorderBrush="#5AC8FA" BorderThickness="1" Background="Transparent" Margin="1,0"/>
+                                            <Border Width="11" Height="14" CornerRadius="2" BorderBrush="#5AC8FA" BorderThickness="1" Background="Transparent" Margin="1,0"/>
+                                        </StackPanel>
+
+                                        <!-- Quick Action Button: [ 📷 10s Privacy Mirror ] -->
+                                        <Button Click="OnCameraMirrorClicked" Style="{StaticResource DarkCapsuleButtonStyle}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📷" FontSize="10" Margin="0,0,4,0"/>
+                                                <TextBlock Text="10s Camera Mirror" FontSize="9"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <!-- Right Column: macOS Thin Sliders & Hardware Monitors -->
+                                    <Border Grid.Column="1" Background="#101014" BorderBrush="#1CFFFFFF" BorderThickness="1" CornerRadius="12" Padding="8,6">
+                                        <StackPanel VerticalAlignment="Center">
+                                            <!-- Volume Slider -->
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="26"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path Width="11" Height="11" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
+                                                      Data="M 1,4 H 3.5 L 7,1 V 11 L 3.5,8 H 1 Z M 9,3.5 C 10.5,5 10.5,7 9,8.5"/>
+                                                <Slider Grid.Column="1" x:Name="VolumeSlider" Style="{StaticResource MacThinSliderStyle}"
+                                                        Minimum="0" Maximum="100" Value="50" Margin="6,0" VerticalAlignment="Center"
+                                                        ValueChanged="OnVolumeSliderValueChanged"/>
+                                                <TextBlock Grid.Column="2" x:Name="TxtVolumePercent" Text="50%" FontSize="9" Foreground="#8E8E93"
+                                                           VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                            </Grid>
+
+                                            <!-- Brightness Slider -->
+                                            <Grid Margin="0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="26"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path Width="11" Height="11" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
+                                                      Data="M 5.5,3 A 2.5,2.5 0 1,1 5.49,3 Z M 5.5,0.5 V 1.5 M 5.5,9.5 V 10.5 M 0.5,5.5 H 1.5 M 9.5,5.5 H 10.5"/>
+                                                <Slider Grid.Column="1" x:Name="BrightnessSlider" Style="{StaticResource MacThinSliderStyle}"
+                                                        Minimum="0" Maximum="100" Value="75" Margin="6,0" VerticalAlignment="Center"
+                                                        ValueChanged="OnBrightnessSliderValueChanged"/>
+                                                <TextBlock Grid.Column="2" x:Name="TxtBrightnessPercent" Text="75%" FontSize="9" Foreground="#8E8E93"
+                                                           VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                            </Grid>
+
+                                            <!-- Hardware Monitor Badges (CPU, RAM, BAT) -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
+                                                <Border Background="#1E30D158" CornerRadius="4" Padding="5,1" Margin="0,0,4,0">
+                                                    <TextBlock Text="{Binding CpuText, StringFormat='CPU {0}'}" FontSize="8" FontWeight="Bold" Foreground="#30D158"/>
+                                                </Border>
+                                                <Border Background="#1E0A84FF" CornerRadius="4" Padding="5,1" Margin="0,0,4,0">
+                                                    <TextBlock Text="{Binding RamText, StringFormat='RAM {0}'}" FontSize="8" FontWeight="Bold" Foreground="#0A84FF"/>
+                                                </Border>
+                                                <Border Background="#1EFFD60A" CornerRadius="4" Padding="5,1">
+                                                    <TextBlock Text="{Binding BatteryText, StringFormat='BAT {0}'}" FontSize="8" FontWeight="Bold" Foreground="#FFD60A"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 5: FILE DROP TRAY (📥)                            -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlideFileDrop" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Title: "File" (Bold White) + "Shelf" (Bold Orange #FF9F0A) -->
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="File" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                    <TextBlock Text="Shelf" FontSize="14" FontWeight="Bold" Foreground="#FF9F0A" Margin="2,0,0,0"/>
+                                </StackPanel>
+
+                                <!-- Drop Box & Item List -->
+                                <Border Grid.Row="1" Background="#101014" BorderBrush="#1CFFFFFF" BorderThickness="1" CornerRadius="12" Padding="8" Height="90" VerticalAlignment="Center">
+                                    <Grid>
+                                        <!-- Empty State -->
+                                        <StackPanel x:Name="EmptyFilesView" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
+                                            <Path Stroke="#636366" StrokeThickness="1.2" Fill="Transparent" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                  Data="M 2,4 C 2,2.9 2.9,2 4,2 H 7 L 9,4 H 14 C 15.1,4 16,4.9 16,6 V 12 C 16,13.1 15.1,14 14,14 H 4 C 2.9,14 2,13.1 2,12 Z"/>
+                                            <TextBlock x:Name="EmptyFilesText" Text="Drop files here to hold" FontSize="11" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <!-- Populated Items List -->
+                                        <ScrollViewer x:Name="FilesListScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                                            <ItemsControl ItemsSource="{Binding FileItems}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Margin="0,0,8,0" Background="#1E1E24" BorderBrush="#383842" BorderThickness="1" CornerRadius="8"
+                                                                Padding="8,4" VerticalAlignment="Center" Cursor="Hand" ToolTip="Click and drag out to copy to other apps"
+                                                                PreviewMouseLeftButtonDown="OnFileCardMouseDown"
+                                                                PreviewMouseMove="OnFileCardMouseMove">
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                                <StackPanel VerticalAlignment="Center" MaxWidth="90">
+                                                                    <TextBlock Text="{Binding FileName}" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding FileSizeFormatted}" FontSize="9" Foreground="#8E8E93"/>
+                                                                </StackPanel>
+                                                                <Button Command="{Binding DataContext.RemoveFileItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                        CommandParameter="{Binding}" Margin="6,0,0,0" Width="16" Height="16" Background="Transparent" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
+                                                                    <Button.Template>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <Border Background="#2A2A32" CornerRadius="8">
+                                                                                <TextBlock Text="×" FontSize="10" Foreground="#C7C7CC" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                                                                            </Border>
+                                                                        </ControlTemplate>
+                                                                    </Button.Template>
+                                                                </Button>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Bottom Quick Action Buttons: [ 📋 Copy PNG ], [ 📦 ZIP ], [ Clear All ] -->
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
+                                    <Button Click="OnCopyPngClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="📋 Copy PNG" Margin="3,0"/>
+                                    <Button Click="OnZipFilesClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="📦 ZIP" Margin="3,0"/>
+                                    <Button Click="OnClearFilesClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="Clear All" Margin="3,0"/>
                                 </StackPanel>
                             </Grid>
                         </Grid>
-
-                        <!-- TAB 4: SETTINGS -->
-                        <Grid x:Name="SettingsTabContent" Visibility="Collapsed">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Text="WINISLAND PREFERENCES" FontSize="9" FontWeight="Bold" Foreground="#636366" Margin="0,0,0,4"/>
-
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <StackPanel Orientation="Vertical">
-                                    <!-- Switches using MacToggleSwitchStyle (34x18px) -->
-                                    <Grid Margin="0,2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <CheckBox x:Name="ChkAutoHide" Style="{StaticResource MacToggleSwitchStyle}" Content="Fullscreen Auto-Hide" FontSize="10" Foreground="#E5E5EA"
-                                                  IsChecked="True" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                                        <CheckBox Grid.Column="1" x:Name="ChkRequireAlt" Style="{StaticResource MacToggleSwitchStyle}" Content="Require Alt Key" FontSize="10" Foreground="#E5E5EA"
-                                                  Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                                    </Grid>
-
-                                    <!-- Hover Trigger Delay Slider using MacThinSliderStyle -->
-                                    <Grid Margin="0,5,0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="38"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Hover Delay:" FontSize="10" Foreground="#8E8E93" VerticalAlignment="Center"/>
-                                        <Slider Grid.Column="1" x:Name="SliderHoverDelay" Style="{StaticResource MacThinSliderStyle}"
-                                                Minimum="100" Maximum="600" Value="250" SmallChange="50" LargeChange="100"
-                                                TickFrequency="50" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="8,0"
-                                                ValueChanged="OnSliderDelayChanged"/>
-                                        <TextBlock Grid.Column="2" x:Name="TxtDelayValue" Text="250ms" FontSize="10" Foreground="#30D158"
-                                                   VerticalAlignment="Center" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <!-- Ghost Opacity (Click-Through) Slider in Tab Settings -->
-                                    <Grid Margin="0,3,0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="38"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Width="11" Height="11" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
-                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent" Margin="0,0,5,0"
-                                                  Data="M 1.5,5.5 C 1.5,3 3,1.5 5.5,1.5 C 8,1.5 9.5,3 9.5,5.5 C 9.5,8 8,9.5 5.5,9.5 C 3,9.5 1.5,8 1.5,5.5 Z M 5.5,3.5 A 2,2 0 1,0 5.5,7.5 A 2,2 0 1,0 5.5,3.5 Z"/>
-                                            <TextBlock Text="Ghost Opacity:" FontSize="10" Foreground="#8E8E93" VerticalAlignment="Center"
-                                                       ToolTip="Transparansi saat Ghost Mode / Click-Through aktif (Hold Ctrl / Klik Kanan Tahan)"/>
-                                        </StackPanel>
-                                        <Slider Grid.Column="1" x:Name="SettingsGhostOpacitySlider" Style="{StaticResource MacThinSliderStyle}"
-                                                Minimum="5" Maximum="80" Value="15" SmallChange="5" LargeChange="10"
-                                                TickFrequency="5" IsSnapToTickEnabled="True" Margin="8,0" VerticalAlignment="Center"
-                                                ValueChanged="OnGhostOpacitySliderValueChanged"/>
-                                        <TextBlock Grid.Column="2" x:Name="TxtSettingsGhostOpacityPercent" Text="15%" FontSize="10" Foreground="#30D158"
-                                                   VerticalAlignment="Center" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <!-- Display Target Monitor (Primary vs Active Cursor Monitor) -->
-                                    <Grid Margin="0,3,0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Width="11" Height="11" VerticalAlignment="Center" Stroke="#8E8E93" StrokeThickness="1.2"
-                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent" Margin="0,0,5,0"
-                                                  Data="M 1,2 H 10 V 8 H 1 Z M 3.5,10 H 7.5 M 5.5,8 V 10"/>
-                                            <TextBlock Text="Display:" FontSize="10" Foreground="#8E8E93" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <RadioButton x:Name="RadioDisplayPrimary" Content="Primary Monitor" GroupName="DisplayTargetGroup"
-                                                         Style="{StaticResource SegmentedPillButtonStyle}" FontSize="9" Margin="0,0,3,0"
-                                                         Click="OnDisplayTargetChanged"/>
-                                            <RadioButton x:Name="RadioDisplayCursor" Content="Active Cursor Monitor" GroupName="DisplayTargetGroup"
-                                                         Style="{StaticResource SegmentedPillButtonStyle}" FontSize="9"
-                                                         Click="OnDisplayTargetChanged"/>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <!-- Run on Windows Startup -->
-                                    <Grid Margin="0,2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <CheckBox x:Name="ChkStartup" Style="{StaticResource MacToggleSwitchStyle}" Content="Run on Windows Startup" FontSize="10" Foreground="#E5E5EA"
-                                                  Checked="OnStartupToggled" Unchecked="OnStartupToggled"/>
-                                        <TextBlock Grid.Column="1" Text="Saved automatically" FontSize="8" Foreground="#30D158" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </StackPanel>
-                            </ScrollViewer>
-                        </Grid>
                     </Grid>
 
-                    <!-- ROW 2: DEDICATED PIXEL PET TRACK (22px) -->
-                    <Border Grid.Row="2" Height="22" VerticalAlignment="Bottom" BorderThickness="0,1,0,0" BorderBrush="#12FFFFFF" Margin="12,0,12,2">
-                        <Canvas x:Name="PetTrackCanvas" Height="22" ClipToBounds="True">
+                    <!-- ROW 2: MORPHING BOTTOM PAGINATION DOTS <-> 6-ICON MICRO DOCK (Height 24) -->
+                    <Grid Grid.Row="2"
+                          x:Name="BottomNavContainer"
+                          VerticalAlignment="Bottom"
+                          HorizontalAlignment="Center"
+                          Margin="0,0,0,4"
+                          Height="22"
+                          Background="Transparent"
+                          MouseEnter="OnBottomNavMouseEnter"
+                          MouseLeave="OnBottomNavMouseLeave">
+
+                        <!-- State 1: Pagination Dots (when !BottomNavContainer.IsMouseOver) -->
+                        <StackPanel x:Name="PaginationDotsPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <!-- Dot 0 (Music) -->
+                            <Border x:Name="Dot0" Width="16" Height="5" CornerRadius="2.5" Background="#FFFFFF" Margin="3,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="0"/>
+                            <!-- Dot 1 (Pomodoro) -->
+                            <Border x:Name="Dot1" Width="5" Height="5" CornerRadius="2.5" Background="#48484A" Margin="3,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="1"/>
+                            <!-- Dot 2 (TodoList) -->
+                            <Border x:Name="Dot2" Width="5" Height="5" CornerRadius="2.5" Background="#48484A" Margin="3,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="2"/>
+                            <!-- Dot 3 (Notifications) -->
+                            <Border x:Name="Dot3" Width="5" Height="5" CornerRadius="2.5" Background="#48484A" Margin="3,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="3"/>
+                            <!-- Dot 4 (Hydration) -->
+                            <Border x:Name="Dot4" Width="5" Height="5" CornerRadius="2.5" Background="#48484A" Margin="3,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="4"/>
+                            <!-- Dot 5 (File Drop) -->
+                            <Border x:Name="Dot5" Width="5" Height="5" CornerRadius="2.5" Background="#48484A" Margin="3,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="5"/>
+                        </StackPanel>
+
+                        <!-- State 2: Micro Icon Dock (when BottomNavContainer.IsMouseOver) -->
+                        <Border x:Name="MicroDockBorder"
+                                Background="#E618181C"
+                                BorderBrush="#24FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="11"
+                                Padding="4,1"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center"
+                                Opacity="0"
+                                Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- 1. Music (🎵) - Pink/Coral #FF2D55 -->
+                                <Button x:Name="DockBtnMusic" Click="OnDockBtnClicked" Tag="0" Style="{StaticResource MicroDockButtonStyle}" ToolTip="Music Player">
+                                    <Path x:Name="DockIconMusic" Fill="#FF2D55" Width="12" Height="12" Stretch="Uniform"
+                                          Data="M 9,3 V 10 C 9,11.1 8.1,12 7,12 C 5.9,12 5,11.1 5,10 C 5,8.9 5.9,8 7,8 C 7.4,8 7.7,8.1 8,8.3 V 5 L 13,3.5 V 9 C 13,10.1 12.1,11 11,11 C 9.9,11 9,10.1 9,9 C 9,7.9 9.9,7 11,7 C 11.4,7 11.7,7.1 12,7.3 V 2 Z"/>
+                                </Button>
+
+                                <!-- 2. Pomodoro (⏱️) - Red/Orange #FF453A -->
+                                <Button x:Name="DockBtnPomodoro" Click="OnDockBtnClicked" Tag="1" Style="{StaticResource MicroDockButtonStyle}" ToolTip="Pomodoro Timer">
+                                    <Path x:Name="DockIconPomodoro" Stroke="#8E8E93" StrokeThickness="1.2" Width="12" Height="12" Stretch="Uniform" Fill="Transparent"
+                                          Data="M 5,1 H 9 M 7,1 V 3 M 7,5 V 8 L 9,8 M 7,3 A 5,5 0 1,1 6.99,3 Z"/>
+                                </Button>
+
+                                <!-- 3. TodoList (☑️) - Green #30D158 -->
+                                <Button x:Name="DockBtnTodoList" Click="OnDockBtnClicked" Tag="2" Style="{StaticResource MicroDockButtonStyle}" ToolTip="Todo List &amp; Calendar">
+                                    <Path x:Name="DockIconTodoList" Stroke="#8E8E93" StrokeThickness="1.2" Width="12" Height="12" Stretch="Uniform" Fill="Transparent"
+                                          Data="M 2,4 C 2,2.9 2.9,2 4,2 H 10 C 11.1,2 12,2.9 12,4 V 10 C 12,11.1 11.1,12 10,12 H 4 C 2.9,12 2,11.1 2,10 Z M 4,7 L 6,9 L 10,4"/>
+                                </Button>
+
+                                <!-- 4. Notifications (🔔) - Blue #0A84FF with unread red dot badge -->
+                                <Button x:Name="DockBtnNotifications" Click="OnDockBtnClicked" Tag="3" Style="{StaticResource MicroDockButtonStyle}" ToolTip="Notifications">
+                                    <Grid>
+                                        <Path x:Name="DockIconNotifications" Stroke="#8E8E93" StrokeThickness="1.2" Width="12" Height="12" Stretch="Uniform" Fill="Transparent"
+                                              Data="M 6,1 C 4.5,1 3,2.2 3,4 V 7 L 1.5,8.5 H 10.5 L 9,7 V 4 C 9,2.2 7.5,1 6,1 Z M 4.5,9.5 C 4.5,10.3 5.2,11 6,11 C 6.8,11 7.5,10.3 7.5,9.5"/>
+                                        <!-- Unread Red Dot Badge -->
+                                        <Border x:Name="DockUnreadBadgeDot" Width="4" Height="4" CornerRadius="2" Background="#FF3B30" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-2,0"
+                                                Visibility="{Binding HasUnreadNotifications, Converter={StaticResource BoolToVis}}"/>
+                                    </Grid>
+                                </Button>
+
+                                <!-- 5. Hydration / Wellness (💧) - Cyan #5AC8FA -->
+                                <Button x:Name="DockBtnHydration" Click="OnDockBtnClicked" Tag="4" Style="{StaticResource MicroDockButtonStyle}" ToolTip="Hydration &amp; Controls">
+                                    <Path x:Name="DockIconHydration" Stroke="#8E8E93" StrokeThickness="1.2" Width="11" Height="12" Stretch="Uniform" Fill="Transparent"
+                                          Data="M 6,1 C 6,1 1.5,7 1.5,9 C 1.5,11.5 3.5,13.5 6,13.5 C 8.5,13.5 10.5,11.5 10.5,9 C 10.5,7 6,1 6,1 Z"/>
+                                </Button>
+
+                                <!-- 6. File Drop Tray (📥) - Orange #FF9F0A -->
+                                <Button x:Name="DockBtnFileDrop" Click="OnDockBtnClicked" Tag="5" Style="{StaticResource MicroDockButtonStyle}" ToolTip="File Transit Shelf">
+                                    <Path x:Name="DockIconFileDrop" Stroke="#8E8E93" StrokeThickness="1.2" Width="12" Height="12" Stretch="Uniform" Fill="Transparent"
+                                          Data="M 2,3 H 12 V 7 L 10,9 H 4 L 2,7 Z M 2,7 V 11 H 12 V 7"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- ROW 3: SUBTLE WALKING PET TRACK (Height 18) -->
+                    <Border Grid.Row="3" Height="18" VerticalAlignment="Bottom" BorderThickness="0,1,0,0" BorderBrush="#0DFFFFFF" Margin="14,0,14,0">
+                        <Canvas x:Name="PetTrackCanvas" Height="18" ClipToBounds="True">
                             <Canvas x:Name="WalkingPetContainer" Canvas.Left="10" Canvas.Top="0">
                                 <Canvas.RenderTransform>
                                     <TranslateTransform x:Name="PetWalkTransform" X="0"/>
                                 </Canvas.RenderTransform>
-                                <modules:PixelPetCanvas Width="26" Height="20" VerticalAlignment="Center"/>
+                                <modules:PixelPetCanvas Width="22" Height="16" VerticalAlignment="Center"/>
                             </Canvas>
                         </Canvas>
                     </Border>
