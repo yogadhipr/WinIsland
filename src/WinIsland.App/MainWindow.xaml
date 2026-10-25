@@ -512,6 +512,30 @@
                                 <Border x:Name="EqBar5" Width="2" Margin="1,0" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Bottom" Height="5"/>
                             </StackPanel>
 
+                            <!-- Settings Button (⚙) -->
+                            <Button x:Name="TopSettingsBtn"
+                                    Click="OnSettingsToggleClicked"
+                                    Width="20" Height="20"
+                                    Margin="0,0,6,0"
+                                    Background="#1A1A1E"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Pengaturan Dynamic Island &amp; Auto Relaunch">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="SetBorder" Background="{TemplateBinding Background}" CornerRadius="10">
+                                            <TextBlock x:Name="SetGlyphText" Text="⚙" FontSize="10.5" Foreground="#8E8E93" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="SetBorder" Property="Background" Value="#2C2C36"/>
+                                                <Setter TargetName="SetGlyphText" Property="Foreground" Value="#FFFFFF"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
                             <!-- Minimize Button (—) -->
                             <Button Click="OnMinimizeClicked"
                                     Width="20" Height="20"
@@ -1838,6 +1862,160 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
+                            </Grid>
+
+                            <!-- ======================================================== -->
+                            <!-- SETTINGS OVERLAY PANEL (Pengaturan Dynamic Island & Auto Relaunch) -->
+                            <!-- (Fundamental Layout: File Tray 3-Row Architecture)       -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SettingsOverlayPanel" Visibility="Collapsed" Background="#000000">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0: Title "Pengaturan Sistem" + Close Button -->
+                                <Grid Grid.Row="0" Margin="4,0,4,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Pengaturan" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                        <TextBlock Text="Sistem" FontSize="15" FontWeight="Bold" Foreground="#0A84FF" Margin="4,0,0,0"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1"
+                                            Click="OnCloseSettingsPanelClicked"
+                                            Style="{StaticResource DarkCapsuleButtonStyle}"
+                                            HorizontalAlignment="Right"
+                                            Padding="9,2.5"
+                                            FontSize="9.5"
+                                            Content="✕ Tutup"
+                                            ToolTip="Kembali ke slide utama"/>
+                                </Grid>
+
+                                <!-- Row 1: Main Settings Cards Box (Matches File Tray Height="92") -->
+                                <Border Grid.Row="1"
+                                        Background="#101014"
+                                        BorderBrush="#1CFFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="8,6"
+                                        Height="92"
+                                        Margin="4,0,4,10"
+                                        VerticalAlignment="Center">
+                                    <UniformGrid Rows="2" Columns="2">
+                                        <!-- Card 1: Enable / Disable Dynamic Island -->
+                                        <Border Margin="3,2"
+                                                Background="#181820"
+                                                BorderBrush="#24FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="8,5"
+                                                Cursor="Hand"
+                                                MouseLeftButtonUp="OnToggleDynamicIslandCardClicked"
+                                                ToolTip="Klik untuk Enable/Disable tampilan kapsul Dynamic Island (dapat diaktifkan kembali lewat ikon System Tray)">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                                    <TextBlock Text="Dynamic Island" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="Tampilan kapsul di layar" FontSize="8.5" Foreground="#8E8E93" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <Border x:Name="SettingsIslandStatusBorder" Grid.Column="1" Background="#2630D158" BorderBrush="#30D158" BorderThickness="1" CornerRadius="9" Padding="7,2" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="SettingsIslandStatusText" Text="ENABLED" FontSize="8.5" FontWeight="Bold" Foreground="#30D158"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Card 2: Enable / Disable Auto Relaunch -->
+                                        <Border Margin="3,2"
+                                                Background="#181820"
+                                                BorderBrush="#24FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="8,5"
+                                                Cursor="Hand"
+                                                MouseLeftButtonUp="OnToggleAutoRelaunchCardClicked"
+                                                ToolTip="Klik untuk Enable/Disable Auto Relaunch (restart otomatis &amp; jalankan saat Windows menyala)">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                                    <TextBlock Text="Auto Relaunch" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="Restart otomatis &amp; Startup" FontSize="8.5" Foreground="#8E8E93" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <Border x:Name="SettingsRelaunchStatusBorder" Grid.Column="1" Background="#2630D158" BorderBrush="#30D158" BorderThickness="1" CornerRadius="9" Padding="7,2" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="SettingsRelaunchStatusText" Text="ENABLED" FontSize="8.5" FontWeight="Bold" Foreground="#30D158"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Card 3: Auto-Hide Fullscreen -->
+                                        <Border Margin="3,2"
+                                                Background="#181820"
+                                                BorderBrush="#24FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="8,5"
+                                                Cursor="Hand"
+                                                MouseLeftButtonUp="OnToggleAutoHideFullscreenCardClicked"
+                                                ToolTip="Klik untuk Enable/Disable sembunyi otomatis saat layar penuh (Game/Video)">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                                    <TextBlock Text="Auto-Hide Fullscreen" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="Sembunyi saat game/video" FontSize="8.5" Foreground="#8E8E93" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <Border x:Name="SettingsAutoHideStatusBorder" Grid.Column="1" Background="#2630D158" BorderBrush="#30D158" BorderThickness="1" CornerRadius="9" Padding="7,2" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="SettingsAutoHideStatusText" Text="ENABLED" FontSize="8.5" FontWeight="Bold" Foreground="#30D158"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Card 4: Display Target Monitor -->
+                                        <Border Margin="3,2"
+                                                Background="#181820"
+                                                BorderBrush="#24FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="8,5"
+                                                Cursor="Hand"
+                                                MouseLeftButtonUp="OnToggleDisplayTargetCardClicked"
+                                                ToolTip="Klik untuk memilih layar penampilan Dynamic Island (Primary Monitor atau Active Cursor Monitor)">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">
+                                                    <TextBlock Text="Target Monitor" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="Layar tampilan kapsul" FontSize="8.5" Foreground="#8E8E93" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <Border x:Name="SettingsMonitorStatusBorder" Grid.Column="1" Background="#260A84FF" BorderBrush="#0A84FF" BorderThickness="1" CornerRadius="9" Padding="7,2" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="SettingsMonitorStatusText" Text="PRIMARY" FontSize="8.5" FontWeight="Bold" Foreground="#0A84FF"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </UniformGrid>
+                                </Border>
+
+                                <!-- Row 2: Bottom Quick Action Capsule Buttons -->
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
+                                    <Button x:Name="BtnQuickToggleIsland" Click="OnToggleDynamicIslandClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🟢 Disable Island" Margin="5,0" ToolTip="Sembunyikan/tampilkan kapsul Dynamic Island (aktifkan kembali lewat ikon System Tray)"/>
+                                    <Button x:Name="BtnQuickToggleRelaunch" Click="OnToggleAutoRelaunchClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🔄 Auto Relaunch: ON" Margin="5,0" ToolTip="Toggle Auto Relaunch &amp; Windows Startup"/>
+                                    <Button Click="OnCloseSettingsPanelClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✓ Selesai" Foreground="#30D158" Margin="5,0"/>
+                                </StackPanel>
                             </Grid>
                         </Grid>
 

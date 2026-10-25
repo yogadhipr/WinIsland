@@ -6,6 +6,9 @@ namespace WinIsland.App.Core
 {
     public class AppSettings
     {
+        public bool EnableDynamicIsland { get; set; } = true;
+        public bool EnableAutoRelaunch { get; set; } = true;
+
         public int HoverDelayMs { get; set; } = 250;
         public int CollapseDelayMs { get; set; } = 300;
         public bool RequireAltKey { get; set; } = false;
@@ -17,7 +20,7 @@ namespace WinIsland.App.Core
         public bool EnablePomodoroModule { get; set; } = true;
         public bool EnablePixelPet { get; set; } = true;
 
-        public bool RunOnStartup { get; set; } = false;
+        public bool RunOnStartup { get; set; } = true;
 
         public int GhostOpacityPercent { get; set; } = 15;
         public string DisplayTarget { get; set; } = "Primary"; // "Primary" or "ActiveCursor"

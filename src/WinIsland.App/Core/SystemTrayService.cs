@@ -55,6 +55,7 @@ namespace WinIsland.App.Core
         private ContextMenu? _contextMenu;
 
         public event Action? DoubleClicked;
+        public event Action? MenuOpening;
 
         public void Initialize(Window hostWindow, ContextMenu contextMenu, string tooltip = "WinIsland - Dynamic Island PC")
         {
@@ -90,6 +91,7 @@ namespace WinIsland.App.Core
                 }
                 else if (mouseMsg == WM_RBUTTONUP && _contextMenu != null)
                 {
+                    MenuOpening?.Invoke();
                     _contextMenu.IsOpen = true;
                     handled = true;
                 }

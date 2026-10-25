@@ -53,6 +53,15 @@ namespace WinIsland.App
         private bool _isLyricsOpen;
         private bool _isCalendarOpen;
         private bool _isNotificationDetailOpen;
+        private bool _isSettingsOpen;
+        private bool _isExplicitExit;
+
+        private MenuItem? _trayDynamicIslandMenuItem;
+        private MenuItem? _trayAutoRelaunchMenuItem;
+        private MenuItem? _trayStartupMenuItem;
+        private MenuItem? _trayAutoHideFsMenuItem;
+        private MenuItem? _trayPrimaryMonMenuItem;
+        private MenuItem? _trayCursorMonMenuItem;
 
         // Todo Editor & Calendar state
         private TodoTaskItem? _editingTask;
@@ -99,6 +108,12 @@ namespace WinIsland.App
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        private static extern int RegisterApplicationRestart(string? pwzCommandline, int dwFlags);
+
+        [DllImport("kernel32.dll")]
+        private static extern int UnregisterApplicationRestart();
 
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT
@@ -223,12 +238,67 @@ namespace WinIsland.App
         {
             ScrubberTrackContainer.SizeChanged += (s, ev) => UpdateMediaProgress();
             TimelineTrackHost.SizeChanged += (s, ev) => RenderTimelineBar();
+            Closing += OnMainWindowClosing;
+            AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+            if (Application.Current != null)
+            {
+                Application.Current.DispatcherUnhandledException += OnDispatcherUnhandledException;
+            }
+
             NavigateToSlide(0, immediate: true);
             UpdatePomodoroProgressArcs();
             RenderCalendar();
             RenderTimelineBar();
             UpdateUiStates();
+            ApplyAutoRelaunchRegistration(_viewModel.Settings.EnableAutoRelaunch);
+            if (!_viewModel.Settings.EnableDynamicIsland)
+            {
+                MainIslandBorder.Visibility = Visibility.Collapsed;
+            }
+            RefreshSettingsPanelUi();
             InitWindowsNotificationListener();
+        }
+
+        private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Prevent accidental Alt+F4 closure when Auto Relaunch / Keep-Alive is enabled
+            if (!_isExplicitExit && _viewModel.Settings.EnableAutoRelaunch)
+            {
+                e.Cancel = true;
+                if (_isExpanded)
+                {
+                    CollapseIsland();
+                }
+            }
+        }
+
+        private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+        {
+            if (!_isExplicitExit && _viewModel.Settings.EnableAutoRelaunch)
+            {
+                e.Handled = true;
+                Debug.WriteLine($"[AutoRelaunch] Recovered from Dispatcher exception: {e.Exception.Message}");
+            }
+        }
+
+        private void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (!_isExplicitExit && _viewModel.Settings.EnableAutoRelaunch)
+            {
+                try
+                {
+                    string? exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                    if (!string.IsNullOrEmpty(exePath))
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = exePath,
+                            UseShellExecute = true
+                        });
+                    }
+                }
+                catch { }
+            }
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -255,59 +325,91 @@ namespace WinIsland.App
         private void InitializeTray()
         {
             var menu = new ContextMenu();
-            var itemExpand = new MenuItem { Header = "Expand Island" };
-            itemExpand.Click += (s, e) => ExpandIsland();
-
-            var itemCompact = new MenuItem { Header = "Compact Mode" };
-            itemCompact.Click += (s, e) => CollapseIsland();
-
-            var itemMusic = new MenuItem { Header = "🎵 Music Player" };
-            itemMusic.Click += (s, e) => { NavigateToSlide(0); ExpandIsland(); };
-
-            var itemPomo = new MenuItem { Header = "⏱️ Pomodoro Timer" };
-            itemPomo.Click += (s, e) => { NavigateToSlide(1); ExpandIsland(); };
-
-            var itemTodo = new MenuItem { Header = "✅ TodoList & Calendar" };
-            itemTodo.Click += (s, e) => { NavigateToSlide(2); ExpandIsland(); };
-
-            var itemNotify = new MenuItem { Header = "🔔 Notification Center" };
-            itemNotify.Click += (s, e) => { NavigateToSlide(3); ExpandIsland(); };
-
-            var itemFiles = new MenuItem { Header = "📁 File Tray" };
-            itemFiles.Click += (s, e) => { NavigateToSlide(4); ExpandIsland(); };
-
-            var itemPrayer = new MenuItem { Header = "🕌 Jadwal Sholat" };
-            itemPrayer.Click += (s, e) => { NavigateToSlide(5); ExpandIsland(); };
-
-            // Settings Submenu
-            var settingsMenu = new MenuItem { Header = "⚙️ Settings" };
             var s = SettingsManager.Instance.Current;
 
-            var itemPrimaryMon = new MenuItem { Header = "Display: Primary Monitor", IsCheckable = true, IsChecked = s.DisplayTarget != "ActiveCursor" };
-            var itemCursorMon = new MenuItem { Header = "Display: Active Cursor Monitor", IsCheckable = true, IsChecked = s.DisplayTarget == "ActiveCursor" };
+            _trayDynamicIslandMenuItem = new MenuItem
+            {
+                Header = "🟢 Enable Dynamic Island",
+                IsCheckable = true,
+                IsChecked = s.EnableDynamicIsland
+            };
+            _trayDynamicIslandMenuItem.Click += (_, _) =>
+            {
+                SetDynamicIslandEnabled(_trayDynamicIslandMenuItem.IsChecked);
+            };
 
-            itemPrimaryMon.Click += (_, _) =>
+            _trayAutoRelaunchMenuItem = new MenuItem
+            {
+                Header = "🔄 Enable Auto Relaunch",
+                IsCheckable = true,
+                IsChecked = s.EnableAutoRelaunch
+            };
+            _trayAutoRelaunchMenuItem.Click += (_, _) =>
+            {
+                SetAutoRelaunchEnabled(_trayAutoRelaunchMenuItem.IsChecked);
+            };
+
+            var itemOpenSettingsPanel = new MenuItem { Header = "⚙️ Buka Panel Pengaturan..." };
+            itemOpenSettingsPanel.Click += (_, _) => OpenSettingsPanelFromTray();
+
+            var itemExpand = new MenuItem { Header = "Expand Island" };
+            itemExpand.Click += (_, _) =>
+            {
+                if (!SettingsManager.Instance.Current.EnableDynamicIsland)
+                {
+                    SetDynamicIslandEnabled(true);
+                }
+                ExpandIsland();
+            };
+
+            var itemCompact = new MenuItem { Header = "Compact Mode" };
+            itemCompact.Click += (_, _) => CollapseIsland();
+
+            var itemMusic = new MenuItem { Header = "🎵 Music Player" };
+            itemMusic.Click += (_, _) => { EnsureDynamicIslandVisible(); CloseSettingsPanelIfOpen(); NavigateToSlide(0); ExpandIsland(); };
+
+            var itemPomo = new MenuItem { Header = "⏱️ Pomodoro Timer" };
+            itemPomo.Click += (_, _) => { EnsureDynamicIslandVisible(); CloseSettingsPanelIfOpen(); NavigateToSlide(1); ExpandIsland(); };
+
+            var itemTodo = new MenuItem { Header = "✅ TodoList & Calendar" };
+            itemTodo.Click += (_, _) => { EnsureDynamicIslandVisible(); CloseSettingsPanelIfOpen(); NavigateToSlide(2); ExpandIsland(); };
+
+            var itemNotify = new MenuItem { Header = "🔔 Notification Center" };
+            itemNotify.Click += (_, _) => { EnsureDynamicIslandVisible(); CloseSettingsPanelIfOpen(); NavigateToSlide(3); ExpandIsland(); };
+
+            var itemFiles = new MenuItem { Header = "📁 File Tray" };
+            itemFiles.Click += (_, _) => { EnsureDynamicIslandVisible(); CloseSettingsPanelIfOpen(); NavigateToSlide(4); ExpandIsland(); };
+
+            var itemPrayer = new MenuItem { Header = "🕌 Jadwal Sholat" };
+            itemPrayer.Click += (_, _) => { EnsureDynamicIslandVisible(); CloseSettingsPanelIfOpen(); NavigateToSlide(5); ExpandIsland(); };
+
+            // Settings Submenu
+            var settingsMenu = new MenuItem { Header = "⚙️ More Settings" };
+
+            _trayPrimaryMonMenuItem = new MenuItem { Header = "Display: Primary Monitor", IsCheckable = true, IsChecked = s.DisplayTarget != "ActiveCursor" };
+            _trayCursorMonMenuItem = new MenuItem { Header = "Display: Active Cursor Monitor", IsCheckable = true, IsChecked = s.DisplayTarget == "ActiveCursor" };
+
+            _trayPrimaryMonMenuItem.Click += (_, _) =>
             {
                 s.DisplayTarget = "Primary";
-                itemPrimaryMon.IsChecked = true;
-                itemCursorMon.IsChecked = false;
                 SettingsManager.Instance.SaveSettings(s);
+                RefreshSettingsPanelUi();
                 UpdateIslandPosition(force: true);
             };
-            itemCursorMon.Click += (_, _) =>
+            _trayCursorMonMenuItem.Click += (_, _) =>
             {
                 s.DisplayTarget = "ActiveCursor";
-                itemCursorMon.IsChecked = true;
-                itemPrimaryMon.IsChecked = false;
                 SettingsManager.Instance.SaveSettings(s);
+                RefreshSettingsPanelUi();
                 UpdateIslandPosition(force: true);
             };
 
-            var itemAutoHideFs = new MenuItem { Header = "Auto-Hide in Fullscreen", IsCheckable = true, IsChecked = s.EnableAutoHideFullScreen };
-            itemAutoHideFs.Click += (_, _) =>
+            _trayAutoHideFsMenuItem = new MenuItem { Header = "Auto-Hide in Fullscreen", IsCheckable = true, IsChecked = s.EnableAutoHideFullScreen };
+            _trayAutoHideFsMenuItem.Click += (_, _) =>
             {
-                s.EnableAutoHideFullScreen = itemAutoHideFs.IsChecked;
+                s.EnableAutoHideFullScreen = _trayAutoHideFsMenuItem.IsChecked;
                 SettingsManager.Instance.SaveSettings(s);
+                RefreshSettingsPanelUi();
             };
 
             var itemRequireAlt = new MenuItem { Header = "Require Alt Key to Expand", IsCheckable = true, IsChecked = s.RequireAltKey };
@@ -317,24 +419,34 @@ namespace WinIsland.App
                 SettingsManager.Instance.SaveSettings(s);
             };
 
-            var itemStartup = new MenuItem { Header = "Run on Windows Startup", IsCheckable = true, IsChecked = s.RunOnStartup };
-            itemStartup.Click += (_, _) =>
+            _trayStartupMenuItem = new MenuItem { Header = "Run on Windows Startup", IsCheckable = true, IsChecked = s.RunOnStartup };
+            _trayStartupMenuItem.Click += (_, _) =>
             {
-                s.RunOnStartup = itemStartup.IsChecked;
+                s.RunOnStartup = _trayStartupMenuItem.IsChecked;
                 SettingsManager.Instance.SaveSettings(s);
                 SetRunOnStartupRegistry(s.RunOnStartup);
+                RefreshSettingsPanelUi();
             };
 
-            settingsMenu.Items.Add(itemPrimaryMon);
-            settingsMenu.Items.Add(itemCursorMon);
+            settingsMenu.Items.Add(_trayPrimaryMonMenuItem);
+            settingsMenu.Items.Add(_trayCursorMonMenuItem);
             settingsMenu.Items.Add(new Separator());
-            settingsMenu.Items.Add(itemAutoHideFs);
+            settingsMenu.Items.Add(_trayAutoHideFsMenuItem);
             settingsMenu.Items.Add(itemRequireAlt);
-            settingsMenu.Items.Add(itemStartup);
+            settingsMenu.Items.Add(_trayStartupMenuItem);
 
             var itemExit = new MenuItem { Header = "Exit WinIsland" };
-            itemExit.Click += (s2, e2) => Application.Current.Shutdown();
+            itemExit.Click += (_, _) =>
+            {
+                _isExplicitExit = true;
+                UnregisterApplicationRestart();
+                Application.Current.Shutdown();
+            };
 
+            menu.Items.Add(_trayDynamicIslandMenuItem);
+            menu.Items.Add(_trayAutoRelaunchMenuItem);
+            menu.Items.Add(itemOpenSettingsPanel);
+            menu.Items.Add(new Separator());
             menu.Items.Add(itemExpand);
             menu.Items.Add(itemCompact);
             menu.Items.Add(new Separator());
@@ -351,8 +463,15 @@ namespace WinIsland.App
 
             _trayService = new SystemTrayService();
             _trayService.Initialize(this, menu);
+            _trayService.MenuOpening += RefreshSettingsPanelUi;
             _trayService.DoubleClicked += () =>
             {
+                if (!SettingsManager.Instance.Current.EnableDynamicIsland)
+                {
+                    SetDynamicIslandEnabled(true);
+                    ExpandIsland();
+                    return;
+                }
                 if (_isExpanded) CollapseIsland();
                 else ExpandIsland();
             };
@@ -404,6 +523,12 @@ namespace WinIsland.App
             }
             else if (msg == Win32Interop.WM_NCHITTEST)
             {
+                if (MainIslandBorder == null || MainIslandBorder.Visibility != Visibility.Visible)
+                {
+                    handled = true;
+                    return (IntPtr)Win32Interop.HTTRANSPARENT;
+                }
+
                 int x = (short)(lParam.ToInt64() & 0xFFFF);
                 int y = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
 
@@ -715,7 +840,228 @@ namespace WinIsland.App
         private void OnMinimizeClicked(object sender, RoutedEventArgs e)
         {
             CloseAnyInlineEditors();
+            CloseSettingsPanelIfOpen();
             CollapseIsland();
+        }
+
+        private void EnsureDynamicIslandVisible()
+        {
+            if (MainIslandBorder != null && MainIslandBorder.Visibility != Visibility.Visible)
+            {
+                MainIslandBorder.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void OnSettingsToggleClicked(object sender, RoutedEventArgs e)
+        {
+            CloseAnyInlineEditors();
+            _isSettingsOpen = !_isSettingsOpen;
+            if (_isSettingsOpen)
+            {
+                RefreshSettingsPanelUi();
+                SettingsOverlayPanel.Visibility = Visibility.Visible;
+                AnimateCapsuleWidth(490.0);
+            }
+            else
+            {
+                SettingsOverlayPanel.Visibility = Visibility.Collapsed;
+                AnimateCapsuleWidth(GetCurrentTargetWidth());
+                if (!_viewModel.Settings.EnableDynamicIsland)
+                {
+                    MainIslandBorder.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void OpenSettingsPanelFromTray()
+        {
+            EnsureDynamicIslandVisible();
+            CloseAnyInlineEditors();
+            _isSettingsOpen = true;
+            RefreshSettingsPanelUi();
+            SettingsOverlayPanel.Visibility = Visibility.Visible;
+            if (!_isExpanded)
+            {
+                ExpandIsland();
+            }
+            else
+            {
+                AnimateCapsuleWidth(490.0);
+            }
+        }
+
+        private void CloseSettingsPanelIfOpen()
+        {
+            if (_isSettingsOpen)
+            {
+                _isSettingsOpen = false;
+                if (SettingsOverlayPanel != null)
+                {
+                    SettingsOverlayPanel.Visibility = Visibility.Collapsed;
+                }
+                if (!_viewModel.Settings.EnableDynamicIsland && MainIslandBorder != null)
+                {
+                    MainIslandBorder.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void OnCloseSettingsPanelClicked(object sender, RoutedEventArgs e)
+        {
+            CloseSettingsPanelIfOpen();
+            AnimateCapsuleWidth(GetCurrentTargetWidth());
+        }
+
+        private void OnToggleDynamicIslandClicked(object sender, RoutedEventArgs e)
+        {
+            SetDynamicIslandEnabled(!_viewModel.Settings.EnableDynamicIsland);
+        }
+
+        private void OnToggleDynamicIslandCardClicked(object sender, MouseButtonEventArgs e)
+        {
+            SetDynamicIslandEnabled(!_viewModel.Settings.EnableDynamicIsland);
+        }
+
+        private void OnToggleAutoRelaunchClicked(object sender, RoutedEventArgs e)
+        {
+            SetAutoRelaunchEnabled(!_viewModel.Settings.EnableAutoRelaunch);
+        }
+
+        private void OnToggleAutoRelaunchCardClicked(object sender, MouseButtonEventArgs e)
+        {
+            SetAutoRelaunchEnabled(!_viewModel.Settings.EnableAutoRelaunch);
+        }
+
+        private void OnToggleAutoHideFullscreenCardClicked(object sender, MouseButtonEventArgs e)
+        {
+            var s = _viewModel.Settings;
+            s.EnableAutoHideFullScreen = !s.EnableAutoHideFullScreen;
+            SettingsManager.Instance.SaveSettings(s);
+            RefreshSettingsPanelUi();
+            ShowHudFeedback(s.EnableAutoHideFullScreen ? "🖥️ Auto-Hide FS: ON" : "🖥️ Auto-Hide FS: OFF");
+        }
+
+        private void OnToggleDisplayTargetCardClicked(object sender, MouseButtonEventArgs e)
+        {
+            var s = _viewModel.Settings;
+            s.DisplayTarget = s.DisplayTarget == "ActiveCursor" ? "Primary" : "ActiveCursor";
+            SettingsManager.Instance.SaveSettings(s);
+            RefreshSettingsPanelUi();
+            UpdateIslandPosition(force: true);
+            ShowHudFeedback(s.DisplayTarget == "ActiveCursor" ? "🖥️ Monitor: Cursor" : "🖥️ Monitor: Primary");
+        }
+
+        public void SetDynamicIslandEnabled(bool enabled)
+        {
+            var s = _viewModel.Settings;
+            s.EnableDynamicIsland = enabled;
+            SettingsManager.Instance.SaveSettings(s);
+            RefreshSettingsPanelUi();
+
+            if (enabled)
+            {
+                if (MainIslandBorder != null)
+                {
+                    MainIslandBorder.Visibility = Visibility.Visible;
+                }
+                UpdateIslandPosition(force: true);
+                ShowHudFeedback("🟢 Dynamic Island Enabled");
+            }
+            else
+            {
+                _isSettingsOpen = false;
+                if (SettingsOverlayPanel != null)
+                {
+                    SettingsOverlayPanel.Visibility = Visibility.Collapsed;
+                }
+                if (_isShowingCompactToast)
+                {
+                    _isShowingCompactToast = false;
+                    _toastAutoDismissTimer.Stop();
+                    CompactToastContent.Visibility = Visibility.Collapsed;
+                    CompactStandardContent.Visibility = Visibility.Visible;
+                }
+                if (MainIslandBorder != null)
+                {
+                    MainIslandBorder.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        public void SetAutoRelaunchEnabled(bool enabled)
+        {
+            var s = _viewModel.Settings;
+            s.EnableAutoRelaunch = enabled;
+            s.RunOnStartup = enabled;
+            SettingsManager.Instance.SaveSettings(s);
+            ApplyAutoRelaunchRegistration(enabled);
+            RefreshSettingsPanelUi();
+            ShowHudFeedback(enabled ? "🔄 Auto Relaunch: ON" : "⚪ Auto Relaunch: OFF");
+        }
+
+        private void ApplyAutoRelaunchRegistration(bool enable)
+        {
+            try
+            {
+                SetRunOnStartupRegistry(enable || _viewModel.Settings.RunOnStartup);
+                if (enable)
+                {
+                    RegisterApplicationRestart(null, 0);
+                }
+                else
+                {
+                    UnregisterApplicationRestart();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ApplyAutoRelaunchRegistration] Error: {ex.Message}");
+            }
+        }
+
+        private void RefreshSettingsPanelUi()
+        {
+            var s = _viewModel.Settings;
+
+            if (_trayDynamicIslandMenuItem != null) _trayDynamicIslandMenuItem.IsChecked = s.EnableDynamicIsland;
+            if (_trayAutoRelaunchMenuItem != null) _trayAutoRelaunchMenuItem.IsChecked = s.EnableAutoRelaunch;
+            if (_trayStartupMenuItem != null) _trayStartupMenuItem.IsChecked = s.RunOnStartup;
+            if (_trayAutoHideFsMenuItem != null) _trayAutoHideFsMenuItem.IsChecked = s.EnableAutoHideFullScreen;
+            if (_trayPrimaryMonMenuItem != null) _trayPrimaryMonMenuItem.IsChecked = s.DisplayTarget != "ActiveCursor";
+            if (_trayCursorMonMenuItem != null) _trayCursorMonMenuItem.IsChecked = s.DisplayTarget == "ActiveCursor";
+
+            if (SettingsIslandStatusBorder == null) return;
+
+            var onBg = (Brush)new BrushConverter().ConvertFromString("#2630D158")!;
+            var onBorder = (Brush)new BrushConverter().ConvertFromString("#30D158")!;
+            var offBg = (Brush)new BrushConverter().ConvertFromString("#248E8E93")!;
+            var offBorder = (Brush)new BrushConverter().ConvertFromString("#8E8E93")!;
+
+            SettingsIslandStatusBorder.Background = s.EnableDynamicIsland ? onBg : offBg;
+            SettingsIslandStatusBorder.BorderBrush = s.EnableDynamicIsland ? onBorder : offBorder;
+            SettingsIslandStatusText.Text = s.EnableDynamicIsland ? "ENABLED" : "DISABLED";
+            SettingsIslandStatusText.Foreground = s.EnableDynamicIsland ? onBorder : offBorder;
+
+            SettingsRelaunchStatusBorder.Background = s.EnableAutoRelaunch ? onBg : offBg;
+            SettingsRelaunchStatusBorder.BorderBrush = s.EnableAutoRelaunch ? onBorder : offBorder;
+            SettingsRelaunchStatusText.Text = s.EnableAutoRelaunch ? "ENABLED" : "DISABLED";
+            SettingsRelaunchStatusText.Foreground = s.EnableAutoRelaunch ? onBorder : offBorder;
+
+            SettingsAutoHideStatusBorder.Background = s.EnableAutoHideFullScreen ? onBg : offBg;
+            SettingsAutoHideStatusBorder.BorderBrush = s.EnableAutoHideFullScreen ? onBorder : offBorder;
+            SettingsAutoHideStatusText.Text = s.EnableAutoHideFullScreen ? "ENABLED" : "DISABLED";
+            SettingsAutoHideStatusText.Foreground = s.EnableAutoHideFullScreen ? onBorder : offBorder;
+
+            SettingsMonitorStatusText.Text = s.DisplayTarget == "ActiveCursor" ? "CURSOR" : "PRIMARY";
+
+            if (BtnQuickToggleIsland != null)
+            {
+                BtnQuickToggleIsland.Content = s.EnableDynamicIsland ? "⚪ Disable Island" : "🟢 Enable Island";
+            }
+            if (BtnQuickToggleRelaunch != null)
+            {
+                BtnQuickToggleRelaunch.Content = s.EnableAutoRelaunch ? "🔄 Auto Relaunch: ON" : "⚪ Auto Relaunch: OFF";
+            }
         }
 
         public void ExpandIsland() => _ = ExpandIslandAsync();
@@ -838,6 +1184,7 @@ namespace WinIsland.App
             _isTransitioning = true;
             _hoverTimer.Stop();
             CloseAnyInlineEditors();
+            CloseSettingsPanelIfOpen();
 
             var tcs = new TaskCompletionSource<bool>();
 
@@ -894,6 +1241,10 @@ namespace WinIsland.App
 
         private double GetCurrentTargetWidth()
         {
+            if (_isSettingsOpen)
+            {
+                return 490.0;
+            }
             // Wide Mode (700px): when Music Live Lyrics is open, TodoList Calendar Timeline is open, or Notification Full Reader is open
             if ((_currentSlideIndex == 0 && _isLyricsOpen) ||
                 (_currentSlideIndex == 2 && _isCalendarOpen) ||
@@ -952,6 +1303,7 @@ namespace WinIsland.App
 
         public void NavigateToSlide(int newIndex, bool immediate = false)
         {
+            CloseSettingsPanelIfOpen();
             _currentSlideIndex = (newIndex % 6 + 6) % 6;
 
             // Update Slide Views Visibility
@@ -1996,6 +2348,11 @@ namespace WinIsland.App
             if (addToCollection)
             {
                 _viewModel.AddNotification(appName, title, message, accentHex);
+            }
+
+            if (!_viewModel.Settings.EnableDynamicIsland && !_isSettingsOpen)
+            {
+                return;
             }
 
             // If Compact: Expand capsule to Width 350, Height 60 for 3.5 seconds
@@ -3050,6 +3407,7 @@ namespace WinIsland.App
         private void OnFullscreenCheck(object? sender, EventArgs e)
         {
             if (!_viewModel.Settings.EnableAutoHideFullScreen) return;
+            if (!_viewModel.Settings.EnableDynamicIsland && !_isSettingsOpen) return;
 
             bool isFs = Win32Interop.IsFullScreenAppRunning();
             if (isFs && !_isHiddenByFullscreen)
