@@ -467,6 +467,29 @@ namespace WinIsland.App.ViewModels
             }
         }
 
+        public int ClearCompletedTasks()
+        {
+            var completedOnDate = TodoTasks
+                .Where(t => t.TaskDate.Date == _selectedTaskDate.Date && t.IsCompleted)
+                .ToList();
+
+            if (completedOnDate.Count == 0)
+            {
+                completedOnDate = TodoTasks.Where(t => t.IsCompleted).ToList();
+            }
+
+            foreach (var item in completedOnDate)
+            {
+                TodoTasks.Remove(item);
+            }
+
+            if (completedOnDate.Count > 0)
+            {
+                RefreshTodoProgress();
+            }
+            return completedOnDate.Count;
+        }
+
         private void LoadTodos()
         {
             try
@@ -522,6 +545,20 @@ namespace WinIsland.App.ViewModels
         // Notification Center (Dynamic & Persisted — No Hardcoded Fake Items)
         public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
+        private NotificationItem? _selectedNotification;
+        public NotificationItem? SelectedNotification
+        {
+            get => _selectedNotification;
+            set
+            {
+                _selectedNotification = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasSelectedNotification));
+            }
+        }
+
+        public bool HasSelectedNotification => _selectedNotification != null;
+
         public int UnreadNotificationCount => Notifications.Count(n => !n.IsRead);
         public bool HasUnreadNotifications => UnreadNotificationCount > 0;
         public bool HasNoNotifications => Notifications.Count == 0;
@@ -539,6 +576,7 @@ namespace WinIsland.App.ViewModels
                         Notifications.Clear();
                         foreach (var item in items)
                         {
+                            item.IsExpanded = false;
                             Notifications.Add(item);
                         }
                         NotifyNotificationCountChanged();
@@ -582,7 +620,8 @@ namespace WinIsland.App.ViewModels
                 Message = message,
                 AccentHex = accentHex,
                 Timestamp = DateTime.Now,
-                IsRead = false
+                IsRead = false,
+                IsExpanded = false
             };
             Notifications.Insert(0, item);
             while (Notifications.Count > 30)
@@ -603,13 +642,187 @@ namespace WinIsland.App.ViewModels
             NotifyNotificationCountChanged();
         }
 
+        public void ClearAllNotifications()
+        {
+            Notifications.Clear();
+            SelectedNotification = null;
+            SaveNotifications();
+            NotifyNotificationCountChanged();
+        }
+
         public void DismissNotification(NotificationItem item)
         {
             if (Notifications.Contains(item))
             {
+                if (SelectedNotification == item)
+                {
+                    SelectedNotification = null;
+                }
                 Notifications.Remove(item);
                 SaveNotifications();
                 NotifyNotificationCountChanged();
+            }
+        }
+
+        // Jadwal Sholat (Location-Based Prayer Times)
+        public ObservableCollection<PrayerTimeEntry> PrayerTimes { get; } = new();
+
+        private PrayerLocationSettings _prayerLocation = new() { City = "Mendeteksi lokasi...", Country = "Indonesia" };
+        private DateTime _lastPrayerFetchedDate = DateTime.MinValue;
+        private string _lastNotifiedPrayerKey = string.Empty;
+
+        public string CurrentPrayerCityName => _prayerLocation.City;
+
+        private string _prayerLocationText = "Mendeteksi lokasi...";
+        public string PrayerLocationText
+        {
+            get => _prayerLocationText;
+            set { _prayerLocationText = value; OnPropertyChanged(); }
+        }
+
+        private string _prayerHijriDateText = PrayerTimeService.FormatLocalHijriDate(DateTime.Today);
+        public string PrayerHijriDateText
+        {
+            get => _prayerHijriDateText;
+            set { _prayerHijriDateText = value; OnPropertyChanged(); }
+        }
+
+        private string _nextPrayerName = "Memuat...";
+        public string NextPrayerName
+        {
+            get => _nextPrayerName;
+            set { _nextPrayerName = value; OnPropertyChanged(); }
+        }
+
+        private string _nextPrayerTimeText = "--:--";
+        public string NextPrayerTimeText
+        {
+            get => _nextPrayerTimeText;
+            set { _nextPrayerTimeText = value; OnPropertyChanged(); }
+        }
+
+        private string _nextPrayerCountdownText = "Menghitung waktu...";
+        public string NextPrayerCountdownText
+        {
+            get => _nextPrayerCountdownText;
+            set { _nextPrayerCountdownText = value; OnPropertyChanged(); }
+        }
+
+        public async Task InitializePrayerTimesAsync()
+        {
+            var saved = PrayerTimeService.LoadSavedLocation();
+            if (saved != null && !string.IsNullOrWhiteSpace(saved.City))
+            {
+                _prayerLocation = saved;
+            }
+            else
+            {
+                _prayerLocation = await PrayerTimeService.DetectLocationAsync();
+            }
+            await RefreshPrayerTimesAsync(_prayerLocation);
+        }
+
+        public async Task AutoDetectPrayerLocationAsync()
+        {
+            PrayerLocationText = "Mendeteksi lokasi...";
+            var detected = await PrayerTimeService.DetectLocationAsync();
+            await RefreshPrayerTimesAsync(detected);
+        }
+
+        public async Task<bool> SearchAndSetPrayerCityAsync(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return false;
+            PrayerLocationText = $"Mencari {query.Trim()}...";
+            var found = await PrayerTimeService.SearchCityAsync(query);
+            if (found == null) return false;
+            await RefreshPrayerTimesAsync(found);
+            return true;
+        }
+
+        public async Task RefreshPrayerTimesAsync(PrayerLocationSettings? location = null)
+        {
+            if (location != null)
+            {
+                _prayerLocation = location;
+            }
+
+            _lastPrayerFetchedDate = DateTime.Today;
+            var result = await PrayerTimeService.FetchPrayerTimesAsync(_prayerLocation, DateTime.Today);
+
+            await (Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                PrayerLocationText = string.IsNullOrWhiteSpace(result.Country)
+                    ? result.City
+                    : $"{result.City}, {result.Country}";
+                PrayerHijriDateText = result.HijriDate;
+
+                PrayerTimes.Clear();
+                foreach (var item in result.Items)
+                {
+                    PrayerTimes.Add(item);
+                }
+
+                UpdateNextPrayerCountdown(DateTime.Now);
+            }).Task ?? Task.CompletedTask);
+        }
+
+        public void UpdateNextPrayerCountdown(DateTime now)
+        {
+            if (PrayerTimes.Count == 0) return;
+
+            if (_lastPrayerFetchedDate != DateTime.MinValue && _lastPrayerFetchedDate.Date != now.Date)
+            {
+                _lastPrayerFetchedDate = now.Date;
+                _ = RefreshPrayerTimesAsync(_prayerLocation);
+                return;
+            }
+
+            var obligatory = PrayerTimes.Where(p => p.IsObligatory).ToList();
+            if (obligatory.Count == 0) obligatory = PrayerTimes.ToList();
+
+            PrayerTimeEntry? nextEntry = obligatory.FirstOrDefault(p => p.TimeOfDay > now.TimeOfDay);
+            TimeSpan remaining;
+
+            if (nextEntry != null)
+            {
+                remaining = nextEntry.TimeOfDay - now.TimeOfDay;
+            }
+            else
+            {
+                nextEntry = obligatory.FirstOrDefault(p => p.Name == "Subuh") ?? obligatory.First();
+                remaining = (TimeSpan.FromHours(24) - now.TimeOfDay) + nextEntry.TimeOfDay;
+            }
+
+            PrayerTimeEntry? currentEntry = PrayerTimes.LastOrDefault(p => p.TimeOfDay <= now.TimeOfDay)
+                                            ?? PrayerTimes.LastOrDefault(p => p.Name == "Isya")
+                                            ?? PrayerTimes.LastOrDefault();
+
+            foreach (var entry in PrayerTimes)
+            {
+                entry.IsCurrent = ReferenceEquals(entry, currentEntry);
+                entry.IsNext = ReferenceEquals(entry, nextEntry);
+            }
+
+            NextPrayerName = nextEntry.Name;
+            NextPrayerTimeText = nextEntry.TimeString;
+            NextPrayerCountdownText = $"-{(int)remaining.TotalHours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2} lagi";
+
+            // Trigger Adzan/Prayer notification once when exact minute starts
+            foreach (var p in obligatory)
+            {
+                if (now.Hour == p.TimeOfDay.Hours && now.Minute == p.TimeOfDay.Minutes && now.Second <= 2)
+                {
+                    string key = $"{now:yyyyMMdd}_{p.Name}";
+                    if (_lastNotifiedPrayerKey != key)
+                    {
+                        _lastNotifiedPrayerKey = key;
+                        NotificationRequested?.Invoke(
+                            "Jadwal Sholat",
+                            $"Waktu {p.Name} • {p.TimeString}",
+                            $"Telah masuk waktu sholat {p.Name} ({p.TimeString}) untuk wilayah {_prayerLocation.City}.",
+                            "#30D158");
+                    }
+                }
             }
         }
 
@@ -670,6 +883,7 @@ namespace WinIsland.App.ViewModels
         public ICommand AddTaskCommand { get; }
         public ICommand DeleteTaskCommand { get; }
         public ICommand ReadAllNotificationsCommand { get; }
+        public ICommand ClearAllNotificationsCommand { get; }
         public ICommand DismissNotificationCommand { get; }
         public ICommand LogHydrationCommand { get; }
 
@@ -719,6 +933,7 @@ namespace WinIsland.App.ViewModels
                 CurrentTimeString = now.ToString("HH:mm");
                 TopHeaderDateText = now.ToString("ddd d MMM yyyy ");
                 TopHeaderTimeText = now.ToString("HH:mm");
+                UpdateNextPrayerCountdown(now);
             };
             clockTimer.Start();
 
@@ -788,6 +1003,7 @@ namespace WinIsland.App.ViewModels
             });
 
             ReadAllNotificationsCommand = new RelayCommand(ReadAllNotifications);
+            ClearAllNotificationsCommand = new RelayCommand(ClearAllNotifications);
             DismissNotificationCommand = new RelayCommand(param =>
             {
                 if (param is NotificationItem n) DismissNotification(n);
@@ -797,6 +1013,7 @@ namespace WinIsland.App.ViewModels
 
             // Connect Services
             InitializeServices();
+            _ = InitializePrayerTimesAsync();
         }
 
         public async Task SeekToProgressAsync(double ratio)

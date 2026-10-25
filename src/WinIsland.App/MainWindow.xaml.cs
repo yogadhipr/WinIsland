@@ -49,9 +49,10 @@ namespace WinIsland.App
         private bool _isShowingCompactToast;
         private bool _isInlineEditing;
 
-        private int _currentSlideIndex; // 0: Music, 1: Pomodoro, 2: TodoList, 3: Notifications, 4: FileDrop
+        private int _currentSlideIndex; // 0: Music, 1: Pomodoro, 2: TodoList, 3: Notifications, 4: FileDrop, 5: PrayerTimes
         private bool _isLyricsOpen;
         private bool _isCalendarOpen;
+        private bool _isNotificationDetailOpen;
 
         // Todo Editor & Calendar state
         private TodoTaskItem? _editingTask;
@@ -194,6 +195,18 @@ namespace WinIsland.App
                     {
                         RenderTimelineBar();
                     }
+
+                    if (e.PropertyName == nameof(MainIslandViewModel.SelectedNotification) &&
+                        _viewModel.SelectedNotification == null &&
+                        _isNotificationDetailOpen)
+                    {
+                        _isNotificationDetailOpen = false;
+                        if (NotificationDetailPanel != null)
+                        {
+                            NotificationDetailPanel.Visibility = Visibility.Collapsed;
+                        }
+                        AnimateCapsuleWidth(GetCurrentTargetWidth());
+                    }
                 });
             };
 
@@ -262,6 +275,9 @@ namespace WinIsland.App
             var itemFiles = new MenuItem { Header = "📁 File Tray" };
             itemFiles.Click += (s, e) => { NavigateToSlide(4); ExpandIsland(); };
 
+            var itemPrayer = new MenuItem { Header = "🕌 Jadwal Sholat" };
+            itemPrayer.Click += (s, e) => { NavigateToSlide(5); ExpandIsland(); };
+
             // Settings Submenu
             var settingsMenu = new MenuItem { Header = "⚙️ Settings" };
             var s = SettingsManager.Instance.Current;
@@ -326,6 +342,7 @@ namespace WinIsland.App
             menu.Items.Add(itemTodo);
             menu.Items.Add(itemNotify);
             menu.Items.Add(itemFiles);
+            menu.Items.Add(itemPrayer);
             menu.Items.Add(new Separator());
             menu.Items.Add(settingsMenu);
             menu.Items.Add(new Separator());
@@ -719,6 +736,10 @@ namespace WinIsland.App
             {
                 TaskEditorPanel.Visibility = Visibility.Collapsed;
             }
+            if (PrayerCityEditorPanel != null && PrayerCityEditorPanel.Visibility == Visibility.Visible)
+            {
+                PrayerCityEditorPanel.Visibility = Visibility.Collapsed;
+            }
             if (_isInlineEditing)
             {
                 _isInlineEditing = false;
@@ -872,8 +893,10 @@ namespace WinIsland.App
 
         private double GetCurrentTargetWidth()
         {
-            // Wide Mode (700px): when Music Live Lyrics is open OR when TodoList Calendar Timeline is open
-            if ((_currentSlideIndex == 0 && _isLyricsOpen) || (_currentSlideIndex == 2 && _isCalendarOpen))
+            // Wide Mode (700px): when Music Live Lyrics is open, TodoList Calendar Timeline is open, or Notification Full Reader is open
+            if ((_currentSlideIndex == 0 && _isLyricsOpen) ||
+                (_currentSlideIndex == 2 && _isCalendarOpen) ||
+                (_currentSlideIndex == 3 && _isNotificationDetailOpen))
             {
                 return 700.0;
             }
@@ -928,7 +951,7 @@ namespace WinIsland.App
 
         public void NavigateToSlide(int newIndex, bool immediate = false)
         {
-            _currentSlideIndex = (newIndex % 5 + 5) % 5;
+            _currentSlideIndex = (newIndex % 6 + 6) % 6;
 
             // Update Slide Views Visibility
             SlideMusic.Visibility = _currentSlideIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -936,6 +959,7 @@ namespace WinIsland.App
             SlideTodoList.Visibility = _currentSlideIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             SlideNotifications.Visibility = _currentSlideIndex == 3 ? Visibility.Visible : Visibility.Collapsed;
             SlideFileDrop.Visibility = _currentSlideIndex == 4 ? Visibility.Visible : Visibility.Collapsed;
+            SlidePrayerTimes.Visibility = _currentSlideIndex == 5 ? Visibility.Visible : Visibility.Collapsed;
 
             // Update Pagination Dots (Active is elongated white pill 16x4, inactive 4x4 #55FFFFFF)
             UpdatePaginationDots();
@@ -943,7 +967,7 @@ namespace WinIsland.App
             // Update Micro Dock Icons
             UpdateMicroDockColors();
 
-            // Adjust Width if needed (Wide 640 vs Standard 460)
+            // Adjust Width if needed (Wide 700 vs Standard 490)
             if (_isExpanded && !immediate)
             {
                 AnimateCapsuleWidth(GetCurrentTargetWidth());
@@ -966,13 +990,17 @@ namespace WinIsland.App
                 RenderCalendar();
                 RenderTimelineBar();
             }
+            else if (_currentSlideIndex == 5)
+            {
+                _viewModel.UpdateNextPrayerCountdown(DateTime.Now);
+            }
 
             UpdateUiStates();
         }
 
         private void UpdatePaginationDots()
         {
-            Border[] dots = { Dot0, Dot1, Dot2, Dot3, Dot4 };
+            Border[] dots = { Dot0, Dot1, Dot2, Dot3, Dot4, Dot5 };
             var activeBrush = Brushes.White;
             var inactiveBrush = (Brush)new BrushConverter().ConvertFromString("#55FFFFFF")!;
 
@@ -1018,6 +1046,11 @@ namespace WinIsland.App
             // 5. File Tray (Purple #BF5AF2)
             DockFileTrayIcon.Stroke = _currentSlideIndex == 4
                 ? (Brush)new BrushConverter().ConvertFromString("#BF5AF2")!
+                : inactiveBrush;
+
+            // 6. Jadwal Sholat (Emerald Green #30D158)
+            DockPrayerIcon.Stroke = _currentSlideIndex == 5
+                ? (Brush)new BrushConverter().ConvertFromString("#30D158")!
                 : inactiveBrush;
         }
 
@@ -1259,8 +1292,9 @@ namespace WinIsland.App
             {
                 CalendarExpandPanel.Visibility = Visibility.Visible;
                 CalendarColumn.Width = GridLength.Auto;
-                CalBorder.Background = (Brush)new BrushConverter().ConvertFromString("#2630D158")!;
+                CalBorder.Background = Brushes.Transparent;
                 CalGlyph.Stroke = (Brush)new BrushConverter().ConvertFromString("#30D158")!;
+                CalendarToggleBtn.Foreground = (Brush)new BrushConverter().ConvertFromString("#30D158")!;
                 RenderCalendar();
                 RenderTimelineBar();
             }
@@ -1268,12 +1302,26 @@ namespace WinIsland.App
             {
                 CalendarExpandPanel.Visibility = Visibility.Collapsed;
                 CalendarColumn.Width = GridLength.Auto;
-                CalBorder.Background = (Brush)new BrushConverter().ConvertFromString("#1C1C1E")!;
+                CalBorder.Background = Brushes.Transparent;
                 CalGlyph.Stroke = (Brush)new BrushConverter().ConvertFromString("#8E8E93")!;
+                CalendarToggleBtn.Foreground = (Brush)new BrushConverter().ConvertFromString("#EBEBF5")!;
             }
 
             AnimateCapsuleWidth(GetCurrentTargetWidth());
             UpdateUiStates();
+        }
+
+        private void OnEmptyTodoAreaClicked(object sender, MouseButtonEventArgs e)
+        {
+            OpenTaskEditor(null);
+        }
+
+        private void OnClearCompletedTasksClicked(object sender, RoutedEventArgs e)
+        {
+            int removed = _viewModel.ClearCompletedTasks();
+            RenderCalendar();
+            RenderTimelineBar();
+            ShowHudFeedback(removed > 0 ? $"🗑️ {removed} Task Selesai Dihapus" : "✓ Belum ada task selesai");
         }
 
         private void OnTaskItemClicked(object sender, MouseButtonEventArgs e)
@@ -1849,7 +1897,86 @@ namespace WinIsland.App
             if (sender is FrameworkElement card && card.DataContext is NotificationItem item)
             {
                 _viewModel.MarkNotificationRead(item);
+
+                bool newExpanded = !item.IsExpanded;
+                foreach (var n in _viewModel.Notifications)
+                {
+                    n.IsExpanded = ReferenceEquals(n, item) && newExpanded;
+                }
+
+                if (newExpanded)
+                {
+                    _viewModel.SelectedNotification = item;
+                    _isNotificationDetailOpen = true;
+                    NotificationDetailPanel.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    _viewModel.SelectedNotification = null;
+                    _isNotificationDetailOpen = false;
+                    NotificationDetailPanel.Visibility = Visibility.Collapsed;
+                }
+
+                AnimateCapsuleWidth(GetCurrentTargetWidth());
+                e.Handled = true;
             }
+        }
+
+        private void OnCloseNotificationDetailClicked(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.SelectedNotification != null)
+            {
+                _viewModel.SelectedNotification.IsExpanded = false;
+                _viewModel.SelectedNotification = null;
+            }
+            _isNotificationDetailOpen = false;
+            NotificationDetailPanel.Visibility = Visibility.Collapsed;
+            AnimateCapsuleWidth(GetCurrentTargetWidth());
+        }
+
+        private void OnExpandSelectedNotificationClicked(object sender, RoutedEventArgs e)
+        {
+            var target = _viewModel.SelectedNotification
+                         ?? _viewModel.Notifications.FirstOrDefault(n => !n.IsRead)
+                         ?? _viewModel.Notifications.FirstOrDefault();
+
+            if (target == null)
+            {
+                ShowHudFeedback("🔔 Belum ada notifikasi");
+                return;
+            }
+
+            _viewModel.MarkNotificationRead(target);
+
+            bool newExpanded = !(_isNotificationDetailOpen && ReferenceEquals(_viewModel.SelectedNotification, target));
+            foreach (var n in _viewModel.Notifications)
+            {
+                n.IsExpanded = ReferenceEquals(n, target) && newExpanded;
+            }
+
+            if (newExpanded)
+            {
+                _viewModel.SelectedNotification = target;
+                _isNotificationDetailOpen = true;
+                NotificationDetailPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                _viewModel.SelectedNotification = null;
+                _isNotificationDetailOpen = false;
+                NotificationDetailPanel.Visibility = Visibility.Collapsed;
+            }
+
+            AnimateCapsuleWidth(GetCurrentTargetWidth());
+        }
+
+        private void OnClearAllNotificationsClicked(object sender, RoutedEventArgs e)
+        {
+            _viewModel.ClearAllNotifications();
+            _isNotificationDetailOpen = false;
+            NotificationDetailPanel.Visibility = Visibility.Collapsed;
+            AnimateCapsuleWidth(GetCurrentTargetWidth());
+            ShowHudFeedback("🗑️ Semua Notifikasi Dihapus");
         }
 
         private void OnCompactToastBodyClicked(object sender, MouseButtonEventArgs e)
@@ -2287,6 +2414,91 @@ namespace WinIsland.App
 
         #endregion
 
+        #region Slide 5: Jadwal Sholat Berdasarkan Lokasi
+
+        private void OnEditPrayerCityClicked(object sender, RoutedEventArgs e)
+        {
+            string currentCity = _viewModel.CurrentPrayerCityName;
+            TxtPrayerCityInput.Text = (string.IsNullOrWhiteSpace(currentCity) || currentCity.StartsWith("Mendeteksi"))
+                ? string.Empty
+                : currentCity;
+
+            PrayerCityEditorPanel.Visibility = Visibility.Visible;
+            _isInlineEditing = true;
+            Win32Interop.SetAllowActivate(this, true);
+            TxtPrayerCityInput.Focus();
+            TxtPrayerCityInput.SelectAll();
+        }
+
+        private async void OnQuickPrayerCityClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement btn && btn.Tag is string city && !string.IsNullOrWhiteSpace(city))
+            {
+                CloseAnyInlineEditors();
+                ShowHudFeedback($"📍 {city}...");
+                await _viewModel.SearchAndSetPrayerCityAsync(city);
+                ShowHudFeedback($"🕌 {_viewModel.CurrentPrayerCityName}");
+            }
+        }
+
+        private async void OnSavePrayerCityClicked(object sender, RoutedEventArgs e)
+        {
+            await CommitPrayerCitySearchAsync();
+        }
+
+        private void OnCancelPrayerCityClicked(object sender, RoutedEventArgs e)
+        {
+            CloseAnyInlineEditors();
+        }
+
+        private async void OnPrayerCityKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                await CommitPrayerCitySearchAsync();
+            }
+            else if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                CloseAnyInlineEditors();
+            }
+        }
+
+        private async Task CommitPrayerCitySearchAsync()
+        {
+            string query = TxtPrayerCityInput.Text.Trim();
+            CloseAnyInlineEditors();
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                ShowHudFeedback($"📍 Mencari {query}...");
+                bool ok = await _viewModel.SearchAndSetPrayerCityAsync(query);
+                if (ok)
+                {
+                    ShowHudFeedback($"🕌 {_viewModel.CurrentPrayerCityName}");
+                }
+            }
+        }
+
+        private async void OnAutoDetectPrayerLocationClicked(object sender, RoutedEventArgs e)
+        {
+            CloseAnyInlineEditors();
+            ShowHudFeedback("🎯 Mendeteksi Lokasi...");
+            await _viewModel.AutoDetectPrayerLocationAsync();
+            ShowHudFeedback($"📍 {_viewModel.CurrentPrayerCityName}");
+        }
+
+        private async void OnRefreshPrayerTimesClicked(object sender, RoutedEventArgs e)
+        {
+            CloseAnyInlineEditors();
+            ShowHudFeedback("🔄 Memperbarui Jadwal...");
+            await _viewModel.RefreshPrayerTimesAsync();
+            ShowHudFeedback($"🕌 {_viewModel.CurrentPrayerCityName}");
+        }
+
+        #endregion
+
         #region Conditional UI/UX State Machine (UpdateUiStates)
 
         public void UpdateUiStates()
@@ -2660,8 +2872,8 @@ namespace WinIsland.App
                 return;
             }
 
-            // If inside a ScrollViewer on Todo, Notifications, or File Tray slides, allow list scrolling unless Ctrl/Alt held
-            if (_isExpanded && (_currentSlideIndex == 2 || _currentSlideIndex == 3 || _currentSlideIndex == 4) &&
+            // If inside a ScrollViewer on Todo, Notifications, File Tray, or Jadwal Sholat slides, allow list scrolling unless Ctrl held
+            if (_isExpanded && (_currentSlideIndex == 2 || _currentSlideIndex == 3 || _currentSlideIndex == 4 || _currentSlideIndex == 5) &&
                 !Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
                 return;

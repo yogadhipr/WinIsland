@@ -894,509 +894,650 @@
                             </Grid>
 
                             <!-- ======================================================== -->
-                            <!-- SLIDE 2: TODOLIST 1/4 + EXPANDABLE CALENDAR              -->
+                            <!-- SLIDE 2: TODOLIST + EXPANDABLE CALENDAR (FILE TRAY LAYOUT)-->
                             <!-- ======================================================== -->
                             <Grid x:Name="SlideTodoList" Visibility="Collapsed">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition x:Name="CalendarColumn" Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                                <!-- Row 0: Title "TodoList" -->
-                                <TextBlock Grid.Row="0" FontSize="15" Margin="4,0,0,6">
-                                    <Run Text="Todo" Foreground="White" FontWeight="Bold"/><Run Text="List" Foreground="#30D158" FontWeight="Bold"/>
-                                </TextBlock>
+                                <!-- COLUMN 0: 3-Row Fundamental Layout (Same as File Tray) -->
+                                <Grid Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                                <!-- Row 1: Column 0 (Summary), Column 1 (Tasks), Column 2 (Calendar Timeline) -->
-                                <Grid Grid.Row="1" VerticalAlignment="Center">
-                                    <Grid.ColumnDefinitions>
-                                        <!-- Column 0: Summary Left (Width 154) -->
-                                        <ColumnDefinition Width="154"/>
-                                        <!-- Column 1: Task List Center (*) -->
-                                        <ColumnDefinition Width="*"/>
-                                        <!-- Column 2: Calendar Expand Panel (Auto) -->
-                                        <ColumnDefinition x:Name="CalendarColumn" Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- COLUMN 0: PROGRESS + CALENDAR TOGGLE & ACTION BUTTONS -->
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,12,0">
-                                        <!-- Big Progress Ratio & Calendar Toggle Button (📅) -->
+                                    <!-- Row 0: Title "TodoList" + Compact Date & Progress Status Badge -->
+                                    <Grid Grid.Row="0" Margin="4,0,4,6">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock x:Name="TodoRatioText" Text="{Binding TodoProgressText, TargetNullValue='0/0'}" FontSize="34" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Todo" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                            <TextBlock Text="List" FontSize="15" FontWeight="Bold" Foreground="#30D158" Margin="3,0,0,0"/>
+                                        </StackPanel>
 
-                                            <!-- Calendar Toggle Button (28x28 CornerRadius 14) -->
-                                            <Button x:Name="CalendarToggleBtn"
-                                                    Click="OnCalendarToggleClicked"
-                                                    Width="28" Height="28"
-                                                    Margin="12,0,0,0"
-                                                    Background="Transparent"
-                                                    BorderThickness="0"
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding TodoDateSubtitleText}" FontSize="10" Foreground="#8E8E93" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <Border Background="#1E30D158" BorderBrush="#4430D158" BorderThickness="1" CornerRadius="8" Padding="7,2" VerticalAlignment="Center">
+                                                <TextBlock x:Name="TodoRatioText" Text="{Binding TodoProgressText, TargetNullValue='0/0'}" FontSize="10" FontWeight="Bold" Foreground="#30D158"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Row 1: Full-Width Task List Box (Height 92, same as File Tray) -->
+                                    <Border x:Name="TodoListContainerBorder"
+                                            Grid.Row="1"
+                                            Background="#101014"
+                                            BorderBrush="#1CFFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="10,6"
+                                            Height="92"
+                                            Margin="4,0,4,10"
+                                            VerticalAlignment="Center">
+                                        <Grid>
+                                            <!-- Empty State for Selected Date (Clickable to add task) -->
+                                            <Border Background="Transparent"
                                                     Cursor="Hand"
-                                                    Style="{StaticResource CleanMediaButtonStyle}"
-                                                    ToolTip="Toggle Calendar &amp; 24h Timeline">
-                                                <Border x:Name="CalBorder" Background="#1C1C1E" CornerRadius="14" Width="28" Height="28">
-                                                    <Path x:Name="CalGlyph" Stroke="#8E8E93" StrokeThickness="1.2" Width="13" Height="13" Stretch="Uniform" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                          Data="M 2,4 C 2,2.9 2.9,2 4,2 H 12 C 13.1,2 14,2.9 14,4 V 12 C 14,13.1 13.1,14 12,14 H 4 C 2.9,14 2,13.1 2,12 Z M 2,6 H 14 M 5,1 V 3 M 11,1 V 3"/>
-                                                </Border>
-                                            </Button>
-                                        </StackPanel>
-
-                                        <TextBlock Text="{Binding TodoDateSubtitleText}" FontSize="11" Foreground="#8E8E93" TextTrimming="CharacterEllipsis" Margin="0,3,0,12"/>
-
-                                        <!-- Two Dark Capsule Buttons: [ ⊕ Add ] & [ ✎ Edit ] with clear gap -->
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Click="OnAddTaskClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="⊕ Add" Padding="9,5" FontSize="10" Margin="0,0,6,0" ToolTip="Add New Task"/>
-                                            <Button x:Name="EditTaskModeBtn" Click="OnEditTaskClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✎ Edit" Padding="9,5" FontSize="10" ToolTip="Edit Task"/>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <!-- COLUMN 1: TASK LIST + INLINE EDITOR (Height 132) -->
-                                    <Grid Grid.Column="1" Height="132">
-                                        <!-- Standard Scrollable Task List -->
-                                        <Border x:Name="TodoListContainerBorder" Background="#101014" BorderBrush="#1CFFFFFF" BorderThickness="1" CornerRadius="12" Padding="8,6">
-                                            <Grid>
-                                                <!-- Empty State for Selected Date -->
-                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                            Visibility="{Binding HasNoTasksForSelectedDate, Converter={StaticResource BoolToVis}}">
-                                                    <TextBlock Text="Belum ada jadwal di tanggal ini" FontSize="10.5" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                    <TextBlock Text="Klik ⊕ Add untuk menambah jadwal" FontSize="9.5" Foreground="#48484A" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                                    MouseLeftButtonUp="OnEmptyTodoAreaClicked"
+                                                    Visibility="{Binding HasNoTasksForSelectedDate, Converter={StaticResource BoolToVis}}"
+                                                    ToolTip="Klik untuk menambah jadwal baru">
+                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
+                                                    <Path Stroke="#8E8E93" StrokeThickness="1.3" Fill="Transparent" Width="15" Height="15" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                          Data="M 2,4 C 2,2.9 2.9,2 4,2 H 10 C 11.1,2 12,2.9 12,4 V 10 C 12,11.1 11.1,12 10,12 H 4 C 2.9,12 2,11.1 2,10 Z M 4,7 L 6,9 L 10,4"/>
+                                                    <TextBlock Text="Belum ada jadwal di tanggal ini (klik ⊕ Add Task untuk menambah)" FontSize="11" Foreground="#8E8E93" VerticalAlignment="Center"/>
                                                 </StackPanel>
+                                            </Border>
 
-                                                <ScrollViewer x:Name="TodoScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                                    <ItemsControl ItemsSource="{Binding FilteredTodoTasks}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <!-- Task Item Container with 6px vertical gap between items -->
-                                                                <Border x:Name="TaskRowBorder" Margin="0,2.5" CornerRadius="10" Padding="8,5" Cursor="Hand" MouseLeftButtonUp="OnTaskItemClicked">
-                                                                    <Border.Style>
-                                                                        <Style TargetType="Border">
-                                                                            <Setter Property="Background" Value="#0AFFFFFF"/>
-                                                                            <Style.Triggers>
-                                                                                <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                                                    <Setter Property="Background" Value="#1E30D158"/>
-                                                                                </DataTrigger>
-                                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                                    <Setter Property="Background" Value="#1CFFFFFF"/>
-                                                                                </Trigger>
-                                                                            </Style.Triggers>
-                                                                        </Style>
-                                                                    </Border.Style>
+                                            <ScrollViewer x:Name="TodoScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl ItemsSource="{Binding FilteredTodoTasks}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <!-- Full-Width Task Item Card -->
+                                                            <Border x:Name="TaskRowBorder" Margin="0,2.5" CornerRadius="9" Padding="10,5.5" Cursor="Hand" MouseLeftButtonUp="OnTaskItemClicked">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="#16161C"/>
+                                                                        <Setter Property="BorderBrush" Value="#1EFFFFFF"/>
+                                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                                <Setter Property="Background" Value="#1630D158"/>
+                                                                                <Setter Property="BorderBrush" Value="#3830D158"/>
+                                                                            </DataTrigger>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter Property="Background" Value="#22222C"/>
+                                                                            </Trigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
 
-                                                                    <Grid>
-                                                                        <Grid.ColumnDefinitions>
-                                                                            <ColumnDefinition Width="Auto"/>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                            <ColumnDefinition Width="Auto"/>
-                                                                        </Grid.ColumnDefinitions>
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
 
-                                                                        <!-- Checkbox Circle -->
-                                                                        <Border Width="16" Height="16" CornerRadius="8" Margin="0,0,9,0" VerticalAlignment="Center">
-                                                                            <Border.Style>
-                                                                                <Style TargetType="Border">
-                                                                                    <Setter Property="Background" Value="Transparent"/>
-                                                                                    <Setter Property="BorderBrush" Value="{Binding CategoryColor}"/>
-                                                                                    <Setter Property="BorderThickness" Value="1.5"/>
+                                                                    <!-- Checkbox Circle -->
+                                                                    <Border Grid.Column="0" Width="16" Height="16" CornerRadius="8" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Background" Value="Transparent"/>
+                                                                                <Setter Property="BorderBrush" Value="{Binding CategoryColor}"/>
+                                                                                <Setter Property="BorderThickness" Value="1.5"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                                        <Setter Property="Background" Value="#30D158"/>
+                                                                                        <Setter Property="BorderBrush" Value="#30D158"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                        <Path Width="8" Height="6" Stretch="Uniform" Stroke="#FFFFFF" StrokeThickness="1.5" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                                            <Path.Style>
+                                                                                <Style TargetType="Path">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
                                                                                     <Style.Triggers>
                                                                                         <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                                                            <Setter Property="Background" Value="#30D158"/>
-                                                                                            <Setter Property="BorderBrush" Value="#30D158"/>
+                                                                                            <Setter Property="Visibility" Value="Visible"/>
                                                                                         </DataTrigger>
                                                                                     </Style.Triggers>
                                                                                 </Style>
-                                                                            </Border.Style>
-                                                                            <!-- Checkmark -->
-                                                                            <Path Width="8" Height="6" Stretch="Uniform" Stroke="#FFFFFF" StrokeThickness="1.5" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                                                <Path.Style>
-                                                                                    <Style TargetType="Path">
-                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                                        <Style.Triggers>
-                                                                                            <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                                            </DataTrigger>
-                                                                                        </Style.Triggers>
-                                                                                    </Style>
-                                                                                </Path.Style>
-                                                                                <Path.Data>M 1,3 L 3.5,5.5 L 7,1</Path.Data>
-                                                                            </Path>
-                                                                        </Border>
+                                                                            </Path.Style>
+                                                                            <Path.Data>M 1,3 L 3.5,5.5 L 7,1</Path.Data>
+                                                                        </Path>
+                                                                    </Border>
 
-                                                                        <!-- Title & Date/Time Schedule -->
-                                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0">
-                                                                            <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                                                                    <!-- Task Title (Full Horizontal Space) -->
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,10,0">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="#8E8E93"/>
+                                                                                        <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+
+                                                                    <!-- Schedule Badge Pill -->
+                                                                    <Border Grid.Column="2" Background="#14FFFFFF" CornerRadius="6" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding DisplaySchedule}" FontSize="9.5" Foreground="#C7C7CC"/>
+                                                                    </Border>
+
+                                                                    <!-- Edit (✎) & Delete (×) Row Actions -->
+                                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <Button Click="OnEditSingleTaskClicked" Tag="{Binding}" Width="18" Height="18" Margin="0,0,4,0" Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Edit Task">
+                                                                            <Button.Template>
+                                                                                <ControlTemplate TargetType="Button">
+                                                                                    <Border x:Name="Bd" Background="#24FFFFFF" CornerRadius="9">
+                                                                                        <TextBlock Text="✎" FontSize="9" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                    </Border>
+                                                                                    <ControlTemplate.Triggers>
+                                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                                            <Setter TargetName="Bd" Property="Background" Value="#30D158"/>
+                                                                                        </Trigger>
+                                                                                    </ControlTemplate.Triggers>
+                                                                                </ControlTemplate>
+                                                                            </Button.Template>
+                                                                        </Button>
+                                                                        <Button Click="OnDeleteSingleTaskClicked" Tag="{Binding}" Width="18" Height="18" Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Delete Task">
+                                                                            <Button.Template>
+                                                                                <ControlTemplate TargetType="Button">
+                                                                                    <Border x:Name="Bd" Background="#24FFFFFF" CornerRadius="9">
+                                                                                        <TextBlock Text="×" FontSize="11" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                                                                                    </Border>
+                                                                                    <ControlTemplate.Triggers>
+                                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                                            <Setter TargetName="Bd" Property="Background" Value="#FF453A"/>
+                                                                                        </Trigger>
+                                                                                    </ControlTemplate.Triggers>
+                                                                                </ControlTemplate>
+                                                                            </Button.Template>
+                                                                        </Button>
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Row 2: Bottom Quick Action Buttons (File Tray Fundamental Style) -->
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
+                                        <Button Click="OnAddTaskClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="⊕ Add Task" Margin="5,0" ToolTip="Tambah jadwal baru"/>
+                                        <Button x:Name="EditTaskModeBtn" Click="OnEditTaskClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✎ Edit" Margin="5,0" ToolTip="Edit jadwal"/>
+                                        <Button x:Name="CalendarToggleBtn" Click="OnCalendarToggleClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Margin="5,0" ToolTip="Toggle Calendar &amp; 24h Timeline">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border x:Name="CalBorder" Background="Transparent" CornerRadius="4" Margin="0,0,5,0" VerticalAlignment="Center">
+                                                    <Path x:Name="CalGlyph" Stroke="#8E8E93" StrokeThickness="1.3" Width="11" Height="11" Stretch="Uniform" Fill="Transparent"
+                                                          Data="M 2,4 C 2,2.9 2.9,2 4,2 H 12 C 13.1,2 14,2.9 14,4 V 12 C 14,13.1 13.1,14 12,14 H 4 C 2.9,14 2,13.1 2,12 Z M 2,6 H 14 M 5,1 V 3 M 11,1 V 3"/>
+                                                </Border>
+                                                <TextBlock Text="Calendar" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Click="OnClearCompletedTasksClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="Clear Done" Margin="5,0" ToolTip="Hapus jadwal yang sudah selesai"/>
+                                    </StackPanel>
+
+                                    <!-- Inline Add / Edit Task Modal Panel (Spans Row 1 & Row 2 for spacious editing) -->
+                                    <Border x:Name="TaskEditorPanel"
+                                            Grid.Row="1"
+                                            Grid.RowSpan="2"
+                                            Height="132"
+                                            Margin="4,0,4,0"
+                                            Background="#14141A"
+                                            BorderBrush="#30D158"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="12,8"
+                                            Visibility="Collapsed">
+                                        <Grid>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <!-- Row 0: Header Left + Interactive Date Picker Right -->
+                                                <Grid Margin="0,0,0,5">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock x:Name="TxtTaskEditorHeader" Grid.Column="0" Text="Add Task" FontSize="11" FontWeight="Bold" Foreground="#30D158" VerticalAlignment="Center"/>
+
+                                                    <!-- Interactive Date Selector Pill (Scroll or Click ‹ / › or Click Calendar) -->
+                                                    <Border Grid.Column="1" HorizontalAlignment="Right" Background="#22222A" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="6" Padding="6,2"
+                                                            PreviewMouseWheel="OnTaskDateSelectorWheel"
+                                                            ToolTip="Pilih Tanggal (Klik ‹ / ›, Scroll Mouse, atau Klik Tanggal di Kalender)">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Button Click="OnTaskDatePrevClicked" Content="‹" Width="15" Height="15" FontSize="10.5" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}"/>
+                                                            <TextBlock x:Name="TxtTaskEditorDate" Text="25 Oct 2026" FontSize="10" FontWeight="SemiBold" Foreground="#EBEBF5" Margin="6,0" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="OnTaskDateTextClicked"/>
+                                                            <Button Click="OnTaskDateNextClicked" Content="›" Width="15" Height="15" FontSize="10.5" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- Row 1: Task Title Input -->
+                                                <Border Background="#22222A" CornerRadius="6" Padding="8,4.5" Margin="0,0,0,6">
+                                                    <TextBox x:Name="TxtTaskTitleInput"
+                                                             FontSize="11.5"
+                                                             Foreground="#FFFFFF"
+                                                             CaretBrush="#30D158"
+                                                             Background="Transparent"
+                                                             BorderThickness="0"
+                                                             KeyDown="OnTaskEditorKeyDown"
+                                                             ToolTip="Nama Tugas / Jadwal"/>
+                                                </Border>
+
+                                                <!-- Row 2: Non-Text Interactive Time Picker + Category Color Picker + Save/Cancel -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Interactive Start & End Time Picker (Click to open Grid Picker OR Scroll MouseWheel) -->
+                                                    <Border Grid.Column="0" Background="#1C1C24" CornerRadius="6" Padding="6,2.5" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <!-- Start Hour : Start Minute -->
+                                                            <Button x:Name="BtnStartHour" Content="08" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="StartHour" ToolTip="Jam Mulai (Klik untuk pilih atau Scroll Mouse)"/>
+                                                            <TextBlock Text=":" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" Margin="2,0" VerticalAlignment="Center"/>
+                                                            <Button x:Name="BtnStartMin" Content="00" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="StartMin" ToolTip="Menit Mulai (Klik untuk pilih atau Scroll Mouse)"/>
+
+                                                            <TextBlock Text="–" FontSize="10" FontWeight="Bold" Foreground="#636366" Margin="5,0" VerticalAlignment="Center"/>
+
+                                                            <!-- End Hour : End Minute -->
+                                                            <Button x:Name="BtnEndHour" Content="17" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="EndHour" ToolTip="Jam Selesai (Klik untuk pilih atau Scroll Mouse)"/>
+                                                            <TextBlock Text=":" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" Margin="2,0" VerticalAlignment="Center"/>
+                                                            <Button x:Name="BtnEndMin" Content="00" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="EndMin" ToolTip="Menit Selesai (Klik untuk pilih atau Scroll Mouse)"/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- Category Color Dots -->
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                        <Border x:Name="ColorDotGreen" Width="13" Height="13" CornerRadius="6.5" Background="#30D158" Margin="2.5,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#30D158" BorderBrush="White" BorderThickness="1.5"/>
+                                                        <Border x:Name="ColorDotBlue" Width="13" Height="13" CornerRadius="6.5" Background="#0A84FF" Margin="2.5,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#0A84FF"/>
+                                                        <Border x:Name="ColorDotOrange" Width="13" Height="13" CornerRadius="6.5" Background="#FF9F0A" Margin="2.5,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#FF9F0A"/>
+                                                        <Border x:Name="ColorDotPurple" Width="13" Height="13" CornerRadius="6.5" Background="#BF5AF2" Margin="2.5,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#BF5AF2"/>
+                                                    </StackPanel>
+
+                                                    <!-- Save / Cancel Buttons -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                        <Button Click="OnCancelTaskEditorClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="Cancel" Padding="10,4" FontSize="9.5" Margin="0,0,6,0"/>
+                                                        <Button Click="OnSaveTaskEditorClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✓ Save" Foreground="#30D158" Padding="10,4" FontSize="9.5"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <!-- Interactive Grid Overlay for Picking Hours (00-23) or Minutes (00-55) Without Typing -->
+                                            <Border x:Name="TimePickerOverlayBorder"
+                                                    Background="#F716161E"
+                                                    BorderBrush="#38FFFFFF"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10"
+                                                    Padding="8,5"
+                                                    Visibility="Collapsed">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid Grid.Row="0" Margin="2,0,2,4">
+                                                        <TextBlock x:Name="TxtTimePickerOverlayTitle" Text="Pilih Jam Mulai" FontSize="9.5" FontWeight="Bold" Foreground="#30D158" VerticalAlignment="Center"/>
+                                                        <Button Click="OnCloseTimePickerOverlayClicked" Content="×" Width="16" Height="16" FontSize="11" Foreground="#8E8E93" HorizontalAlignment="Right" Style="{StaticResource CleanMediaButtonStyle}"/>
+                                                    </Grid>
+                                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                        <UniformGrid x:Name="TimePickerValuesGrid" Columns="8"/>
+                                                    </ScrollViewer>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+
+                                <!-- COLUMN 1: CONDITIONAL EXPANDABLE CALENDAR & 24H TIMELINE (Width 215) -->
+                                <Border x:Name="CalendarExpandPanel"
+                                        Grid.Column="1"
+                                        Width="215"
+                                        Height="152"
+                                        Margin="10,0,0,0"
+                                        Background="#121216"
+                                        BorderBrush="#24FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="14"
+                                        Padding="12,8"
+                                        VerticalAlignment="Center"
+                                        Visibility="Collapsed">
+                                    <Grid VerticalAlignment="Center">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Row 0: Month Header & [ Week | Month ] Capsule Toggle -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock x:Name="TxtCalendarMonthYear" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                                                <Button Click="OnCalendarPrevClicked" Content="‹" Width="16" Height="16" Margin="4,0,1,0" FontSize="11" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}" ToolTip="Previous"/>
+                                                <Button Click="OnCalendarNextClicked" Content="›" Width="16" Height="16" FontSize="11" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}" ToolTip="Next"/>
+                                            </StackPanel>
+
+                                            <!-- Toggle [ Week | Month ] -->
+                                            <Border Grid.Column="1" HorizontalAlignment="Right" Background="#1C1C1E" CornerRadius="9" Padding="2" Margin="6,0,0,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <RadioButton x:Name="RbCalendarWeek" Content="Week" IsChecked="True" Checked="OnCalendarModeChanged" Style="{StaticResource SegmentedPillButtonStyle}"/>
+                                                    <RadioButton x:Name="RbCalendarMonth" Content="Month" Checked="OnCalendarModeChanged" Style="{StaticResource SegmentedPillButtonStyle}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Row 1: 7-Day Day Names (S M T W T F S) -->
+                                        <UniformGrid Grid.Row="1" Columns="7" Margin="0,2">
+                                            <TextBlock Text="S" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="M" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="T" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="W" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="T" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="F" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="S" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
+                                        </UniformGrid>
+
+                                        <!-- Row 2: Dynamic Week / Month Dates Grid -->
+                                        <UniformGrid x:Name="CalendarDatesGrid" Grid.Row="2" Columns="7" Margin="0,3,0,6"/>
+
+                                        <!-- Row 3: Dynamic 24-Hour Timeline Bar (00 06 12 18 24) -->
+                                        <StackPanel x:Name="TimelineSectionPanel" Grid.Row="3" Margin="0,2,0,0">
+                                            <Grid Margin="0,0,0,3">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="00" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
+                                                <TextBlock Grid.Column="1" Text="06" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
+                                                <TextBlock Grid.Column="2" Text="12" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
+                                                <Grid Grid.Column="3">
+                                                    <TextBlock Text="18" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
+                                                    <TextBlock Text="24" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                            </Grid>
+                                            <!-- Dynamic Track with Tasks Pills & White Current Time Marker -->
+                                            <Grid x:Name="TimelineTrackHost" Height="12" HorizontalAlignment="Stretch">
+                                                <Border Height="4" CornerRadius="2" Background="#24242A" VerticalAlignment="Center"/>
+                                                <Canvas x:Name="TimelinePillsCanvas" Height="12" VerticalAlignment="Center" ClipToBounds="True"/>
+                                                <!-- White Current Time Line -->
+                                                <Border x:Name="TimelineCurrentTimeLine" HorizontalAlignment="Left" Width="2" Height="10" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Center" ToolTip="Current Time"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 3: NOTIFICATION CENTER (FILE TRAY LAYOUT)          -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlideNotifications" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- COLUMN 0: 3-Row Fundamental Layout (Same as File Tray) -->
+                                <Grid Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Row 0: Title "Notify Center" + Compact Unread Count Pill -->
+                                    <Grid Grid.Row="0" Margin="4,0,4,6">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="Notify" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                            <TextBlock Text="Center" FontSize="15" FontWeight="Bold" Foreground="#0A84FF" Margin="3,0,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <TextBlock Text="Klik item untuk expand penuh" FontSize="9.5" Foreground="#636366" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <Border Background="#1E0A84FF" BorderBrush="#440A84FF" BorderThickness="1" CornerRadius="8" Padding="7,2" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Path Stroke="#0A84FF" StrokeThickness="1.2" Width="9" Height="9" Stretch="Uniform" Fill="Transparent" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                          Data="M 6.5,1 C 4.5,1 3,2.5 3,4.5 V 8 L 1.5,10 H 11.5 L 10,8 V 4.5 C 10,2.5 8.5,1 6.5,1 Z M 5,11 C 5,11.8 5.7,12.5 6.5,12.5 C 7.3,12.5 8,11.8 8,11"/>
+                                                    <TextBlock Text="{Binding UnreadNotificationCount, TargetNullValue='0'}" FontSize="10" FontWeight="Bold" Foreground="#0A84FF" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" Unread" FontSize="9.5" FontWeight="SemiBold" Foreground="#0A84FF" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Row 1: Full-Width Scrollable Notification Cards Box (Height 92, same as File Tray) -->
+                                    <Border Grid.Row="1"
+                                            Background="#101014"
+                                            BorderBrush="#1CFFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="10,6"
+                                            Height="92"
+                                            Margin="4,0,4,10"
+                                            VerticalAlignment="Center">
+                                        <Grid>
+                                            <!-- Empty State when no notifications -->
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal"
+                                                        Visibility="{Binding HasNoNotifications, Converter={StaticResource BoolToVis}}">
+                                                <Path Stroke="#8E8E93" StrokeThickness="1.2" Width="15" Height="15" Stretch="Uniform" Fill="Transparent" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                      Data="M 6.5,1 C 4.5,1 3,2.5 3,4.5 V 8 L 1.5,10 H 11.5 L 10,8 V 4.5 C 10,2.5 8.5,1 6.5,1 Z M 5,11 C 5,11.8 5.7,12.5 6.5,12.5 C 7.3,12.5 8,11.8 8,11"/>
+                                                <TextBlock Text="Belum ada notifikasi masuk (klik 🔔 Test untuk uji notifikasi)" FontSize="11" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <ScrollViewer x:Name="NotificationsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl ItemsSource="{Binding Notifications}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Margin="0,2.5" CornerRadius="9" Padding="10,5.5" Cursor="Hand" MouseLeftButtonUp="OnNotificationCardClicked"
+                                                                    ToolTip="Klik untuk expand &amp; membaca notifikasi penuh">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="#16161C"/>
+                                                                        <Setter Property="BorderBrush" Value="#1EFFFFFF"/>
+                                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                                        <Setter Property="Opacity" Value="1.0"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsRead}" Value="True">
+                                                                                <Setter Property="Opacity" Value="0.72"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                                <Setter Property="Background" Value="#20202A"/>
+                                                                                <Setter Property="BorderBrush" Value="{Binding AccentHex}"/>
+                                                                                <Setter Property="Opacity" Value="1.0"/>
+                                                                            </DataTrigger>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter Property="Background" Value="#22222C"/>
+                                                                            </Trigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <!-- App Badge -->
+                                                                    <Border Grid.Column="0" Background="{Binding AccentHex}" CornerRadius="5" Padding="6,2" Margin="0,1,10,0" VerticalAlignment="Top">
+                                                                        <TextBlock Text="{Binding AppName}" FontSize="8.5" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                                                    </Border>
+
+                                                                    <!-- Title & Expandable Full Message (Full Horizontal Space) -->
+                                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                                        <Grid>
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="11.5" FontWeight="Bold" Foreground="#FFFFFF">
                                                                                 <TextBlock.Style>
                                                                                     <Style TargetType="TextBlock">
-                                                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                                                        <Setter Property="TextWrapping" Value="NoWrap"/>
                                                                                         <Style.Triggers>
-                                                                                            <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                                                                <Setter Property="Foreground" Value="#8E8E93"/>
-                                                                                                <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                                                            <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                                                <Setter Property="TextTrimming" Value="None"/>
+                                                                                                <Setter Property="TextWrapping" Value="Wrap"/>
                                                                                             </DataTrigger>
                                                                                         </Style.Triggers>
                                                                                     </Style>
                                                                                 </TextBlock.Style>
                                                                             </TextBlock>
-                                                                            <TextBlock Text="{Binding DisplaySchedule}" FontSize="9.5" Foreground="#8E8E93" Margin="0,2,0,0"/>
-                                                                        </StackPanel>
+                                                                            <TextBlock Grid.Column="1" Text="{Binding FormattedTime}" FontSize="9" Foreground="#8E8E93" Margin="8,0,0,0" VerticalAlignment="Top"/>
+                                                                        </Grid>
 
-                                                                        <!-- Edit (✎) & Delete (×) Row Actions (Shown on row hover so it never crowds text) -->
-                                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
-                                                                            <StackPanel.Style>
-                                                                                <Style TargetType="StackPanel">
+                                                                        <!-- Message (1-line preview when collapsed, full multi-line wrapped when expanded) -->
+                                                                        <TextBlock Text="{Binding Message}" FontSize="10" Margin="0,2,0,0">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Setter Property="Foreground" Value="#98989F"/>
+                                                                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                                                    <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                                            <Setter Property="Foreground" Value="#EBEBF5"/>
+                                                                                            <Setter Property="TextTrimming" Value="None"/>
+                                                                                            <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+
+                                                                        <!-- Full Timestamp Footer when expanded -->
+                                                                        <TextBlock Text="{Binding FormattedFullTime}" FontSize="8.5" Foreground="#636366" Margin="0,4,0,0">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
                                                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                                                     <Style.Triggers>
-                                                                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=TaskRowBorder}" Value="True">
+                                                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
                                                                                             <Setter Property="Visibility" Value="Visible"/>
                                                                                         </DataTrigger>
                                                                                     </Style.Triggers>
                                                                                 </Style>
-                                                                            </StackPanel.Style>
-                                                                            <Button Click="OnEditSingleTaskClicked" Tag="{Binding}" Width="18" Height="18" Margin="0,0,4,0" Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Edit Task">
-                                                                                <Button.Template>
-                                                                                    <ControlTemplate TargetType="Button">
-                                                                                        <Border x:Name="Bd" Background="#24FFFFFF" CornerRadius="9">
-                                                                                            <TextBlock Text="✎" FontSize="9" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                                        </Border>
-                                                                                        <ControlTemplate.Triggers>
-                                                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                                                <Setter TargetName="Bd" Property="Background" Value="#30D158"/>
-                                                                                            </Trigger>
-                                                                                        </ControlTemplate.Triggers>
-                                                                                    </ControlTemplate>
-                                                                                </Button.Template>
-                                                                            </Button>
-                                                                            <Button Click="OnDeleteSingleTaskClicked" Tag="{Binding}" Width="18" Height="18" Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Delete Task">
-                                                                                <Button.Template>
-                                                                                    <ControlTemplate TargetType="Button">
-                                                                                        <Border x:Name="Bd" Background="#24FFFFFF" CornerRadius="9">
-                                                                                            <TextBlock Text="×" FontSize="11" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
-                                                                                        </Border>
-                                                                                        <ControlTemplate.Triggers>
-                                                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                                                <Setter TargetName="Bd" Property="Background" Value="#FF453A"/>
-                                                                                            </Trigger>
-                                                                                        </ControlTemplate.Triggers>
-                                                                                    </ControlTemplate>
-                                                                                </Button.Template>
-                                                                            </Button>
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </ScrollViewer>
-                                            </Grid>
-                                        </Border>
-
-                                        <!-- Inline Add / Edit Task Modal Panel (With Non-Text Time Picker & Saved Date Picker) -->
-                                        <Border x:Name="TaskEditorPanel"
-                                                Background="#14141A"
-                                                BorderBrush="#30D158"
-                                                BorderThickness="1"
-                                                CornerRadius="12"
-                                                Padding="10,7"
-                                                Visibility="Collapsed">
-                                            <Grid>
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <!-- Row 0: Header Left + Interactive Date Picker Right -->
-                                                    <Grid Margin="0,0,0,5">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock x:Name="TxtTaskEditorHeader" Grid.Column="0" Text="Add Task" FontSize="10.5" FontWeight="Bold" Foreground="#30D158" VerticalAlignment="Center"/>
-
-                                                        <!-- Interactive Date Selector Pill (Scroll or Click ‹ / › or Click Calendar) -->
-                                                        <Border Grid.Column="1" HorizontalAlignment="Right" Background="#22222A" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="6" Padding="4,1.5"
-                                                                PreviewMouseWheel="OnTaskDateSelectorWheel"
-                                                                ToolTip="Pilih Tanggal (Klik ‹ / ›, Scroll Mouse, atau Klik Tanggal di Kalender)">
-                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <Button Click="OnTaskDatePrevClicked" Content="‹" Width="14" Height="14" FontSize="10" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}"/>
-                                                                <TextBlock x:Name="TxtTaskEditorDate" Text="25 Oct 2026" FontSize="9.5" FontWeight="SemiBold" Foreground="#EBEBF5" Margin="4,0" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="OnTaskDateTextClicked"/>
-                                                                <Button Click="OnTaskDateNextClicked" Content="›" Width="14" Height="14" FontSize="10" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}"/>
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </Grid>
-
-                                                    <!-- Row 1: Task Title Input -->
-                                                    <Border Background="#22222A" CornerRadius="6" Padding="7,4" Margin="0,0,0,6">
-                                                        <TextBox x:Name="TxtTaskTitleInput"
-                                                                 FontSize="11"
-                                                                 Foreground="#FFFFFF"
-                                                                 CaretBrush="#30D158"
-                                                                 Background="Transparent"
-                                                                 BorderThickness="0"
-                                                                 KeyDown="OnTaskEditorKeyDown"
-                                                                 ToolTip="Nama Tugas / Jadwal"/>
-                                                    </Border>
-
-                                                    <!-- Row 2: Non-Text Interactive Time Picker + Category Color Picker -->
-                                                    <Grid Margin="0,0,0,7">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <!-- Interactive Start & End Time Picker (Click to open Grid Picker OR Scroll MouseWheel) -->
-                                                        <Border Grid.Column="0" Background="#1C1C24" CornerRadius="6" Padding="5,2.5" Margin="0,0,6,0" HorizontalAlignment="Left">
-                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <!-- Start Hour : Start Minute -->
-                                                                <Button x:Name="BtnStartHour" Content="08" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="StartHour" ToolTip="Jam Mulai (Klik untuk pilih atau Scroll Mouse)"/>
-                                                                <TextBlock Text=":" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" Margin="2,0" VerticalAlignment="Center"/>
-                                                                <Button x:Name="BtnStartMin" Content="00" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="StartMin" ToolTip="Menit Mulai (Klik untuk pilih atau Scroll Mouse)"/>
-
-                                                                <TextBlock Text="–" FontSize="10" FontWeight="Bold" Foreground="#636366" Margin="5,0" VerticalAlignment="Center"/>
-
-                                                                <!-- End Hour : End Minute -->
-                                                                <Button x:Name="BtnEndHour" Content="17" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="EndHour" ToolTip="Jam Selesai (Klik untuk pilih atau Scroll Mouse)"/>
-                                                                <TextBlock Text=":" FontSize="10" FontWeight="Bold" Foreground="#8E8E93" Margin="2,0" VerticalAlignment="Center"/>
-                                                                <Button x:Name="BtnEndMin" Content="00" Style="{StaticResource TimeSegmentButtonStyle}" Click="OnTimeSegmentClicked" PreviewMouseWheel="OnTimeSegmentMouseWheel" Tag="EndMin" ToolTip="Menit Selesai (Klik untuk pilih atau Scroll Mouse)"/>
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- Category Color Dots -->
-                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <Border x:Name="ColorDotGreen" Width="12" Height="12" CornerRadius="6" Background="#30D158" Margin="2,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#30D158" BorderBrush="White" BorderThickness="1.5"/>
-                                                            <Border x:Name="ColorDotBlue" Width="12" Height="12" CornerRadius="6" Background="#0A84FF" Margin="2,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#0A84FF"/>
-                                                            <Border x:Name="ColorDotOrange" Width="12" Height="12" CornerRadius="6" Background="#FF9F0A" Margin="2,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#FF9F0A"/>
-                                                            <Border x:Name="ColorDotPurple" Width="12" Height="12" CornerRadius="6" Background="#BF5AF2" Margin="2,0" Cursor="Hand" MouseLeftButtonUp="OnTaskColorSelected" Tag="#BF5AF2"/>
-                                                        </StackPanel>
-                                                    </Grid>
-
-                                                    <!-- Row 3: Save / Cancel Buttons -->
-                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <Button Click="OnCancelTaskEditorClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="Cancel" Padding="9,3" FontSize="9.5" Margin="0,0,6,0"/>
-                                                        <Button Click="OnSaveTaskEditorClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✓ Save" Foreground="#30D158" Padding="9,3" FontSize="9.5"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-
-                                                <!-- Interactive Grid Overlay for Picking Hours (00-23) or Minutes (00-55) Without Typing -->
-                                                <Border x:Name="TimePickerOverlayBorder"
-                                                        Background="#F716161E"
-                                                        BorderBrush="#38FFFFFF"
-                                                        BorderThickness="1"
-                                                        CornerRadius="10"
-                                                        Padding="6,5"
-                                                        Visibility="Collapsed">
-                                                    <Grid>
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="*"/>
-                                                        </Grid.RowDefinitions>
-                                                        <Grid Grid.Row="0" Margin="2,0,2,4">
-                                                            <TextBlock x:Name="TxtTimePickerOverlayTitle" Text="Pilih Jam Mulai" FontSize="9.5" FontWeight="Bold" Foreground="#30D158" VerticalAlignment="Center"/>
-                                                            <Button Click="OnCloseTimePickerOverlayClicked" Content="×" Width="16" Height="16" FontSize="11" Foreground="#8E8E93" HorizontalAlignment="Right" Style="{StaticResource CleanMediaButtonStyle}"/>
-                                                        </Grid>
-                                                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                                            <UniformGrid x:Name="TimePickerValuesGrid" Columns="6"/>
-                                                        </ScrollViewer>
-                                                    </Grid>
-                                                </Border>
-                                            </Grid>
-                                        </Border>
-                                    </Grid>
-
-                                    <!-- COLUMN 2: CONDITIONAL EXPANDABLE CALENDAR & 24H TIMELINE (Width 215, Height 132) -->
-                                    <Border x:Name="CalendarExpandPanel"
-                                            Grid.Column="2"
-                                            Width="215"
-                                            Height="132"
-                                            Margin="12,0,0,0"
-                                            Background="#121216"
-                                            BorderBrush="#24FFFFFF"
-                                            BorderThickness="1"
-                                            CornerRadius="14"
-                                            Padding="12,8"
-                                            Visibility="Collapsed">
-                                        <Grid VerticalAlignment="Center">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-
-                                            <!-- Row 0: Month Header & [ Week | Month ] Capsule Toggle (Non-overlapping 2 columns) -->
-                                            <Grid Grid.Row="0" Margin="0,0,0,6">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock x:Name="TxtCalendarMonthYear" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                                                    <Button Click="OnCalendarPrevClicked" Content="‹" Width="16" Height="16" Margin="4,0,1,0" FontSize="11" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}" ToolTip="Previous"/>
-                                                    <Button Click="OnCalendarNextClicked" Content="›" Width="16" Height="16" FontSize="11" Foreground="#C7C7CC" Style="{StaticResource CleanMediaButtonStyle}" ToolTip="Next"/>
-                                                </StackPanel>
-
-                                                <!-- Toggle [ Week | Month ] -->
-                                                <Border Grid.Column="1" HorizontalAlignment="Right" Background="#1C1C1E" CornerRadius="9" Padding="2" Margin="6,0,0,0">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <RadioButton x:Name="RbCalendarWeek" Content="Week" IsChecked="True" Checked="OnCalendarModeChanged" Style="{StaticResource SegmentedPillButtonStyle}"/>
-                                                        <RadioButton x:Name="RbCalendarMonth" Content="Month" Checked="OnCalendarModeChanged" Style="{StaticResource SegmentedPillButtonStyle}"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </Grid>
-
-                                            <!-- Row 1: 7-Day Day Names (S M T W T F S) -->
-                                            <UniformGrid Grid.Row="1" Columns="7" Margin="0,2">
-                                                <TextBlock Text="S" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="M" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="T" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="W" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="T" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="F" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="S" FontSize="8.5" FontWeight="SemiBold" Foreground="#636366" HorizontalAlignment="Center"/>
-                                            </UniformGrid>
-
-                                            <!-- Row 2: Dynamic Week / Month Dates Grid -->
-                                            <UniformGrid x:Name="CalendarDatesGrid" Grid.Row="2" Columns="7" Margin="0,3,0,6"/>
-
-                                            <!-- Row 3: Dynamic 24-Hour Timeline Bar (00 06 12 18 24) -->
-                                            <StackPanel x:Name="TimelineSectionPanel" Grid.Row="3" Margin="0,2,0,0">
-                                                <Grid Margin="0,0,0,3">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="00" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
-                                                    <TextBlock Grid.Column="1" Text="06" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
-                                                    <TextBlock Grid.Column="2" Text="12" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
-                                                    <Grid Grid.Column="3">
-                                                        <TextBlock Text="18" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Left"/>
-                                                        <TextBlock Text="24" FontSize="8.5" Foreground="#636366" HorizontalAlignment="Right"/>
-                                                    </Grid>
-                                                </Grid>
-                                                <!-- Dynamic Track with Tasks Pills & White Current Time Marker -->
-                                                <Grid x:Name="TimelineTrackHost" Height="12" HorizontalAlignment="Stretch">
-                                                    <Border Height="4" CornerRadius="2" Background="#24242A" VerticalAlignment="Center"/>
-                                                    <Canvas x:Name="TimelinePillsCanvas" Height="12" VerticalAlignment="Center" ClipToBounds="True"/>
-                                                    <!-- White Current Time Line -->
-                                                    <Border x:Name="TimelineCurrentTimeLine" HorizontalAlignment="Left" Width="2" Height="10" CornerRadius="1" Background="#FFFFFF" VerticalAlignment="Center" ToolTip="Current Time"/>
-                                                </Grid>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </Grid>
-                            </Grid>
-
-                            <!-- ======================================================== -->
-                            <!-- SLIDE 3: NOTIFICATION CENTER & INCOMING TOAST POPUP      -->
-                            <!-- ======================================================== -->
-                            <Grid x:Name="SlideNotifications" Visibility="Collapsed">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Row 0: Title "Notify Center" -->
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="4,0,0,6">
-                                    <TextBlock Text="Notify" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
-                                    <TextBlock Text="Center" FontSize="15" FontWeight="Bold" Foreground="#0A84FF" Margin="3,0,0,0"/>
-                                </StackPanel>
-
-                                <!-- Row 1: 2 Columns (Summary & Scrollable Cards) -->
-                                <Grid Grid.Row="1" VerticalAlignment="Center">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="154"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Left Column: Unread Count + Bell + [ ✓ Read All ] + [ 🔔 Test ] -->
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,12,0">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding UnreadNotificationCount, TargetNullValue='0'}" FontSize="34" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-
-                                            <!-- Round Bell Button (🔔) -->
-                                            <Border Width="28" Height="28" CornerRadius="14" Background="#1C1C1E" Margin="12,0,0,0" VerticalAlignment="Center">
-                                                <Path Stroke="#0A84FF" StrokeThickness="1.2" Width="13" Height="13" Stretch="Uniform" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                      Data="M 6.5,1 C 4.5,1 3,2.5 3,4.5 V 8 L 1.5,10 H 11.5 L 10,8 V 4.5 C 10,2.5 8.5,1 6.5,1 Z M 5,11 C 5,11.8 5.7,12.5 6.5,12.5 C 7.3,12.5 8,11.8 8,11"/>
-                                            </Border>
-                                        </StackPanel>
-
-                                        <TextBlock Text="Unread Alerts" FontSize="11" Foreground="#8E8E93" Margin="0,3,0,12"/>
-
-                                        <!-- Two Dark Capsule Buttons with 6px gap -->
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Command="{Binding ReadAllNotificationsCommand}" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✓ Read All" Padding="8,5" FontSize="9.5" Margin="0,0,6,0"/>
-                                            <Button Click="OnTestToastClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🔔 Test" Padding="8,5" FontSize="9.5" ToolTip="Trigger live system status notification toast"/>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <!-- Right Column: Scrollable List of Notification Cards -->
-                                    <Border Grid.Column="1" Background="#101014" BorderBrush="#1CFFFFFF" BorderThickness="1" CornerRadius="12" Padding="8,6" Height="132">
-                                        <Grid>
-                                            <!-- Empty State when no notifications -->
-                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                        Visibility="{Binding HasNoNotifications, Converter={StaticResource BoolToVis}}">
-                                                <TextBlock Text="Belum ada notifikasi masuk" FontSize="10.5" Foreground="#636366" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="Notifikasi sistem &amp; pengingat akan tampil di sini" FontSize="9.5" Foreground="#48484A" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
-
-                                            <ScrollViewer x:Name="NotificationsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <ItemsControl ItemsSource="{Binding Notifications}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Margin="0,3" Background="#18181E" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="9" Padding="9,6" Cursor="Hand" MouseLeftButtonUp="OnNotificationCardClicked">
-                                                            <Border.Style>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="Opacity" Value="1.0"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsRead}" Value="True">
-                                                                            <Setter Property="Opacity" Value="0.55"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Border.Style>
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                </Grid.ColumnDefinitions>
-
-                                                                <!-- App Badge -->
-                                                                <Border Grid.Column="0" Background="{Binding AccentHex}" CornerRadius="5" Padding="5,2" Margin="0,0,8,0" VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding AppName}" FontSize="8" FontWeight="Bold" Foreground="#FFFFFF"/>
-                                                                </Border>
-
-                                                                <!-- Title & Message Preview -->
-                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                                    <StackPanel Orientation="Horizontal">
-                                                                        <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" TextTrimming="CharacterEllipsis"/>
-                                                                        <TextBlock Text="{Binding FormattedTime}" FontSize="8.5" Foreground="#636366" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
                                                                     </StackPanel>
-                                                                    <TextBlock Text="{Binding Message}" FontSize="9.5" Foreground="#8E8E93" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
-                                                                </StackPanel>
 
-                                                                <!-- Dismiss Button (×) -->
-                                                                <Button Grid.Column="2"
-                                                                        Command="{Binding DataContext.DismissNotificationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                        CommandParameter="{Binding}"
-                                                                        Width="18" Height="18"
-                                                                        Background="Transparent"
-                                                                        BorderThickness="0"
-                                                                        Cursor="Hand"
-                                                                        VerticalAlignment="Center">
-                                                                    <Button.Template>
-                                                                        <ControlTemplate TargetType="Button">
-                                                                            <Border Background="#24242A" CornerRadius="9">
-                                                                                <TextBlock Text="×" FontSize="10" Foreground="#8E8E93" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
-                                                                            </Border>
-                                                                        </ControlTemplate>
-                                                                    </Button.Template>
-                                                                </Button>
-                                                            </Grid>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </ScrollViewer>
+                                                                    <!-- Expand Indicator (▾/▴) & Dismiss Button (×) -->
+                                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                                                                        <Border Background="#18FFFFFF" CornerRadius="8" Width="17" Height="17" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                                                ToolTip="Expand / Collapse">
+                                                                            <TextBlock Text="{Binding ExpandIcon}" FontSize="9" Foreground="#C7C7CC" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                                                                        </Border>
+                                                                        <Button Command="{Binding DataContext.DismissNotificationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                CommandParameter="{Binding}"
+                                                                                Width="17" Height="17"
+                                                                                Background="Transparent"
+                                                                                BorderThickness="0"
+                                                                                Cursor="Hand"
+                                                                                VerticalAlignment="Center"
+                                                                                ToolTip="Hapus notifikasi ini">
+                                                                            <Button.Template>
+                                                                                <ControlTemplate TargetType="Button">
+                                                                                    <Border x:Name="Bd" Background="#24242A" CornerRadius="8.5">
+                                                                                        <TextBlock Text="×" FontSize="10.5" Foreground="#8E8E93" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1.5,0,0"/>
+                                                                                    </Border>
+                                                                                    <ControlTemplate.Triggers>
+                                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                                            <Setter TargetName="Bd" Property="Background" Value="#FF453A"/>
+                                                                                        </Trigger>
+                                                                                    </ControlTemplate.Triggers>
+                                                                                </ControlTemplate>
+                                                                            </Button.Template>
+                                                                        </Button>
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
                                         </Grid>
                                     </Border>
+
+                                    <!-- Row 2: Bottom Quick Action Buttons (File Tray Fundamental Style) -->
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
+                                        <Button Click="OnExpandSelectedNotificationClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="📖 Expand Full" Margin="5,0" ToolTip="Expand / baca penuh notifikasi"/>
+                                        <Button Command="{Binding ReadAllNotificationsCommand}" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✓ Read All" Margin="5,0" ToolTip="Tandai semua sudah dibaca"/>
+                                        <Button Click="OnTestToastClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🔔 Test" Margin="5,0" ToolTip="Uji notifikasi sistem"/>
+                                        <Button Click="OnClearAllNotificationsClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🗑️ Hapus Semua" Foreground="#FF453A" Margin="5,0" ToolTip="Hapus semua notifikasi"/>
+                                    </StackPanel>
                                 </Grid>
+
+                                <!-- COLUMN 1: Conditional Expandable Full Notification Reader Panel (Width 215) -->
+                                <Border x:Name="NotificationDetailPanel"
+                                        Grid.Column="1"
+                                        Width="215"
+                                        Height="152"
+                                        Margin="10,0,0,0"
+                                        Background="#121216"
+                                        BorderBrush="#24FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="14"
+                                        Padding="12,9"
+                                        VerticalAlignment="Center"
+                                        Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Header: App Badge + Time + Close Button -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="{Binding SelectedNotification.AccentHex, FallbackValue='#0A84FF'}" CornerRadius="5" Padding="6,2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding SelectedNotification.AppName, FallbackValue='Info'}" FontSize="8.5" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                            </Border>
+                                            <TextBlock Grid.Column="1" Text="{Binding SelectedNotification.FormattedFullTime}" FontSize="8.5" Foreground="#8E8E93" Margin="7,0,4,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            <Button Grid.Column="2" Click="OnCloseNotificationDetailClicked" Content="×" Width="18" Height="18" FontSize="12" Foreground="#8E8E93" Style="{StaticResource CleanMediaButtonStyle}" ToolTip="Tutup panel baca"/>
+                                        </Grid>
+
+                                        <!-- Full Notification Title -->
+                                        <TextBlock Grid.Row="1"
+                                                   Text="{Binding SelectedNotification.Title}"
+                                                   FontSize="11.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="#FFFFFF"
+                                                   TextWrapping="Wrap"
+                                                   MaxHeight="34"
+                                                   Margin="0,0,0,4"/>
+
+                                        <!-- Scrollable Full Notification Message Body -->
+                                        <ScrollViewer x:Name="NotificationDetailScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <TextBlock Text="{Binding SelectedNotification.Message}"
+                                                       FontSize="10"
+                                                       Foreground="#D1D1D6"
+                                                       TextWrapping="Wrap"
+                                                       LineHeight="14.5"/>
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Border>
                             </Grid>
 
                             <!-- ======================================================== -->
@@ -1474,6 +1615,230 @@
                                     <Button Click="OnClearFilesClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="Clear All" Margin="5,0"/>
                                 </StackPanel>
                             </Grid>
+
+                            <!-- ======================================================== -->
+                            <!-- SLIDE 5: JADWAL SHOLAT BERDASARKAN LOKASI                -->
+                            <!-- (Fundamental Layout: File Tray 3-Row Architecture)       -->
+                            <!-- ======================================================== -->
+                            <Grid x:Name="SlidePrayerTimes" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0: Title "Jadwal Sholat" + Current Location Badge on Top Right -->
+                                <Grid Grid.Row="0" Margin="4,0,4,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Jadwal" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                        <TextBlock Text="Sholat" FontSize="15" FontWeight="Bold" Foreground="#30D158" Margin="4,0,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Location Pill Badge Preserved on Top Right -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Button Click="OnEditPrayerCityClicked"
+                                                Style="{StaticResource DarkCapsuleButtonStyle}"
+                                                Padding="8,3"
+                                                FontSize="9.5"
+                                                ToolTip="Klik untuk mengubah kota lokasi jadwal sholat">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="📍" FontSize="9" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding PrayerLocationText}" FontSize="9.5" Foreground="#EBEBF5" MaxWidth="175" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <TextBlock Text="✎" FontSize="8.5" Foreground="#8E8E93" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Row 1: Full-Width 1-Line Prayer Schedule Container (Matches File Tray Box) -->
+                                <Border x:Name="PrayerScheduleListBorder"
+                                        Grid.Row="1"
+                                        Background="#101014"
+                                        BorderBrush="#1CFFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="6,6"
+                                        Height="92"
+                                        Margin="4,0,4,10"
+                                        VerticalAlignment="Center">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Top Sub-Header: Hijri Date (Left) & Next Prayer Live Countdown (Right) -->
+                                        <Grid Grid.Row="0" Margin="4,0,4,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding PrayerHijriDateText}"
+                                                       FontSize="9"
+                                                       Foreground="#8E8E93"
+                                                       VerticalAlignment="Center"/>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="Berikutnya:" FontSize="9" Foreground="#8E8E93" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding NextPrayerName}" FontSize="9.5" FontWeight="Bold" Foreground="#30D158" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding NextPrayerTimeText}" FontSize="9.5" FontWeight="Bold" Foreground="#30D158" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="•" FontSize="9" Foreground="#636366" Margin="5,0,5,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding NextPrayerCountdownText}" FontSize="9" FontWeight="SemiBold" Foreground="#A8E6CF" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- All Prayer Times Aligned in 1 Horizontal Line -->
+                                        <ItemsControl Grid.Row="1" ItemsSource="{Binding PrayerTimes}" VerticalAlignment="Center">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Rows="1"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="1.5,0" CornerRadius="8" Padding="2,5">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#0AFFFFFF"/>
+                                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                        <Setter Property="Background" Value="#2230D158"/>
+                                                                        <Setter Property="BorderBrush" Value="#6630D158"/>
+                                                                    </DataTrigger>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="#18FFFFFF"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+
+                                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                            <!-- Prayer Name -->
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       FontSize="9.5"
+                                                                       HorizontalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="#C7C7CC"/>
+                                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsObligatory}" Value="False">
+                                                                                <Setter Property="Foreground" Value="#7C7C82"/>
+                                                                                <Setter Property="FontWeight" Value="Normal"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                                <Setter Property="Foreground" Value="#30D158"/>
+                                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+
+                                                            <!-- Prayer Time (HH:mm) -->
+                                                            <TextBlock Text="{Binding TimeString}"
+                                                                       FontSize="11.5"
+                                                                       FontWeight="Bold"
+                                                                       HorizontalAlignment="Center"
+                                                                       Margin="0,3,0,0">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsObligatory}" Value="False">
+                                                                                <Setter Property="Foreground" Value="#8E8E93"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                                <Setter Property="Foreground" Value="#30D158"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+
+                                                            <!-- Active Ongoing Prayer Indicator Bar -->
+                                                            <Border Width="16" Height="2.5" CornerRadius="1.25" Margin="0,4,0,0" HorizontalAlignment="Center">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="Transparent"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                                <Setter Property="Background" Value="#30D158"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Row 2: Bottom Quick Action Capsule Buttons (Matches File Tray) -->
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
+                                    <Button Click="OnEditPrayerCityClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="📍 Pilih Kota" Margin="5,0" ToolTip="Cari atau pilih kota lokasi sholat"/>
+                                    <Button Click="OnAutoDetectPrayerLocationClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🎯 Auto Lokasi" Margin="5,0" ToolTip="Deteksi lokasi otomatis berdasarkan IP"/>
+                                    <Button Click="OnRefreshPrayerTimesClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="🔄 Segarkan" Margin="5,0" ToolTip="Muat ulang jadwal sholat hari ini"/>
+                                </StackPanel>
+
+                                <!-- Inline Location / City Search Panel (Spans Row 1 & Row 2 when open) -->
+                                <Border x:Name="PrayerCityEditorPanel"
+                                        Grid.Row="1"
+                                        Grid.RowSpan="2"
+                                        Height="132"
+                                        Margin="4,0,4,0"
+                                        Background="#14141A"
+                                        BorderBrush="#30D158"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="12,8"
+                                        Visibility="Collapsed">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Pilih / Cari Kota Lokasi" FontSize="10.5" FontWeight="Bold" Foreground="#30D158" Margin="0,0,0,5"/>
+
+                                        <!-- City Search TextBox -->
+                                        <Border Background="#22222A" CornerRadius="6" Padding="7,4" Margin="0,0,0,6">
+                                            <TextBox x:Name="TxtPrayerCityInput"
+                                                     FontSize="11"
+                                                     Foreground="#FFFFFF"
+                                                     CaretBrush="#30D158"
+                                                     Background="Transparent"
+                                                     BorderThickness="0"
+                                                     KeyDown="OnPrayerCityKeyDown"
+                                                     ToolTip="Ketik nama kota (contoh: Jakarta, Bandung, Surabaya, Denpasar, Makassar)"/>
+                                        </Border>
+
+                                        <!-- Quick City Chips -->
+                                        <WrapPanel Margin="0,0,0,6">
+                                            <Button Click="OnQuickPrayerCityClicked" Tag="Jakarta" Content="Jakarta" Style="{StaticResource DarkCapsuleButtonStyle}" Padding="7,2" FontSize="8.5" Margin="0,0,4,3"/>
+                                            <Button Click="OnQuickPrayerCityClicked" Tag="Bandung" Content="Bandung" Style="{StaticResource DarkCapsuleButtonStyle}" Padding="7,2" FontSize="8.5" Margin="0,0,4,3"/>
+                                            <Button Click="OnQuickPrayerCityClicked" Tag="Surabaya" Content="Surabaya" Style="{StaticResource DarkCapsuleButtonStyle}" Padding="7,2" FontSize="8.5" Margin="0,0,4,3"/>
+                                            <Button Click="OnQuickPrayerCityClicked" Tag="Yogyakarta" Content="Yogya" Style="{StaticResource DarkCapsuleButtonStyle}" Padding="7,2" FontSize="8.5" Margin="0,0,4,3"/>
+                                            <Button Click="OnQuickPrayerCityClicked" Tag="Denpasar" Content="Denpasar" Style="{StaticResource DarkCapsuleButtonStyle}" Padding="7,2" FontSize="8.5" Margin="0,0,4,3"/>
+                                            <Button Click="OnQuickPrayerCityClicked" Tag="Makassar" Content="Makassar" Style="{StaticResource DarkCapsuleButtonStyle}" Padding="7,2" FontSize="8.5" Margin="0,0,4,3"/>
+                                        </WrapPanel>
+
+                                        <!-- Save / Cancel Buttons -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Click="OnCancelPrayerCityClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="Batal" Padding="9,3" FontSize="9.5" Margin="0,0,6,0"/>
+                                            <Button Click="OnSavePrayerCityClicked" Style="{StaticResource DarkCapsuleButtonStyle}" Content="✓ Simpan" Foreground="#30D158" Padding="9,3" FontSize="9.5"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </Grid>
 
                         <!-- Right Chevron Button (>) -->
@@ -1492,7 +1857,7 @@
                         </Button>
                     </Grid>
 
-                    <!-- ROW 2: MORPHING BOTTOM DOCK (PAGINATION DOTS <-> 5-ICON DOCK) (Height 32) -->
+                    <!-- ROW 2: MORPHING BOTTOM DOCK (PAGINATION DOTS <-> 6-ICON DOCK) (Height 32) -->
                     <Grid Grid.Row="2"
                           x:Name="BottomDockHost"
                           VerticalAlignment="Center"
@@ -1503,7 +1868,7 @@
                           MouseEnter="OnBottomDockMouseEnter"
                           MouseLeave="OnBottomDockMouseLeave">
 
-                        <!-- State 1: Pagination Dots (5 Indicators, Default terlihat) -->
+                        <!-- State 1: Pagination Dots (6 Indicators, Default terlihat) -->
                         <StackPanel x:Name="PaginationDotsPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <!-- Dot 0 (Music - Default Active) -->
                             <Border x:Name="Dot0" Width="16" Height="4" CornerRadius="2" Background="#FFFFFF" Margin="4,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="0"/>
@@ -1515,9 +1880,11 @@
                             <Border x:Name="Dot3" Width="4" Height="4" CornerRadius="2" Background="#55FFFFFF" Margin="4,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="3"/>
                             <!-- Dot 4 (File Tray) -->
                             <Border x:Name="Dot4" Width="4" Height="4" CornerRadius="2" Background="#55FFFFFF" Margin="4,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="4"/>
+                            <!-- Dot 5 (Jadwal Sholat) -->
+                            <Border x:Name="Dot5" Width="4" Height="4" CornerRadius="2" Background="#55FFFFFF" Margin="4,0" Cursor="Hand" MouseLeftButtonUp="OnDotClicked" Tag="5"/>
                         </StackPanel>
 
-                        <!-- State 2: BottomIconDockPanel (5 Tombol Ikon Vektor, muncul saat di-hover) -->
+                        <!-- State 2: BottomIconDockPanel (6 Tombol Ikon Vektor, muncul saat di-hover) -->
                         <Border x:Name="BottomIconDockBorder"
                                 Background="#E618181C"
                                 BorderBrush="#24FFFFFF"
@@ -1556,12 +1923,18 @@
                                         <Border Width="4" Height="4" CornerRadius="2" Background="#FF3B30" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-2,0"
                                                 Visibility="{Binding HasUnreadNotifications, Converter={StaticResource BoolToVis}}"/>
                                     </Grid>
-                                            </Button>
+                                </Button>
 
                                 <!-- 5. File Tray Icon (Tray Masuk) - #BF5AF2 saat aktif -->
                                 <Button Click="OnDockBtnClicked" Tag="4" Style="{StaticResource MicroDockButtonStyle}" ToolTip="File Tray">
                                     <Path x:Name="DockFileTrayIcon" Stroke="#8E8E93" StrokeThickness="1.2" Width="12" Height="12" Stretch="Uniform" Fill="Transparent"
                                           Data="M 2,3 H 12 V 7 L 10,9 H 4 L 2,7 Z M 2,7 V 11 H 12 V 7"/>
+                                </Button>
+
+                                <!-- 6. Jadwal Sholat Icon (Crescent Moon & Star) - #30D158 saat aktif -->
+                                <Button Click="OnDockBtnClicked" Tag="5" Style="{StaticResource MicroDockButtonStyle}" ToolTip="Jadwal Sholat">
+                                    <Path x:Name="DockPrayerIcon" Stroke="#8E8E93" StrokeThickness="1.2" Width="12" Height="12" Stretch="Uniform" Fill="Transparent"
+                                          Data="M 9.5,2.2 A 4.8,4.8 0 1,0 11.8,9.5 A 3.8,3.8 0 1,1 9.5,2.2 Z M 10.5,4.2 L 11.5,4.2 M 11,3.7 L 11,4.7"/>
                                 </Button>
                             </StackPanel>
                         </Border>

@@ -187,16 +187,79 @@ namespace WinIsland.App.ViewModels
         public DateTime Timestamp
         {
             get => _timestamp;
-            set { _timestamp = value; OnPropertyChanged(); OnPropertyChanged(nameof(FormattedTime)); }
+            set
+            {
+                _timestamp = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(FormattedTime));
+                OnPropertyChanged(nameof(FormattedFullTime));
+            }
         }
 
         public string FormattedTime => Timestamp.ToString("HH:mm");
+
+        public string FormattedFullTime => Timestamp.ToString("dd MMM yyyy • HH:mm", CultureInfo.InvariantCulture);
 
         private bool _isRead;
         public bool IsRead
         {
             get => _isRead;
             set { _isRead = value; OnPropertyChanged(); }
+        }
+
+        private bool _isExpanded;
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set
+            {
+                _isExpanded = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ExpandIcon));
+            }
+        }
+
+        public string ExpandIcon => _isExpanded ? "▴" : "▾";
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? propName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
+        }
+    }
+
+    public class PrayerTimeEntry : INotifyPropertyChanged
+    {
+        private string _name = string.Empty;
+        public string Name
+        {
+            get => _name;
+            set { _name = value; OnPropertyChanged(); }
+        }
+
+        private string _timeString = "00:00";
+        public string TimeString
+        {
+            get => _timeString;
+            set { _timeString = value; OnPropertyChanged(); }
+        }
+
+        public TimeSpan TimeOfDay { get; set; }
+
+        public bool IsObligatory { get; set; } = true;
+
+        private bool _isCurrent;
+        public bool IsCurrent
+        {
+            get => _isCurrent;
+            set { _isCurrent = value; OnPropertyChanged(); }
+        }
+
+        private bool _isNext;
+        public bool IsNext
+        {
+            get => _isNext;
+            set { _isNext = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
