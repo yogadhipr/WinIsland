@@ -67,9 +67,10 @@ namespace WinIsland.App
         private DateTime _selectedCalendarDate = DateTime.Today;
         private bool _isCalendarMonthMode;
 
-        // Windows Notification Listener tracking
-        private readonly HashSet<uint> _seenNotificationIds = new();
+        // Windows Notification Listener & WpnDatabase tracking
+        private readonly HashSet<string> _seenNotificationKeys = new(StringComparer.Ordinal);
         private bool _initialNotificationsSeeded;
+        private bool _isPollingNotifications;
 
         private IntPtr _currentHMonitor = IntPtr.Zero;
         private IntPtr _pendingHMonitor = IntPtr.Zero;
@@ -2137,6 +2138,9 @@ namespace WinIsland.App
 
         private void InitWindowsNotificationListener()
         {
+            // Always start polling so WpnDatabase (wpndatabase.db) is read even if WinRT UserNotificationListener is restricted
+            StartWindowsNotificationPolling();
+
             try
             {
                 var listener = Windows.UI.Notifications.Management.UserNotificationListener.Current;
@@ -2150,7 +2154,14 @@ namespace WinIsland.App
                             if (status == Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus.Allowed)
                             {
                                 Debug.WriteLine("[UserNotificationListener] Access granted for Windows notifications.");
-                                await Dispatcher.InvokeAsync(StartWindowsNotificationPolling);
+                                try
+                                {
+                                    listener.NotificationChanged += (s, args) =>
+                                    {
+                                        _ = Dispatcher.InvokeAsync(async () => await PollWindowsNotificationsAsync());
+                                    };
+                                }
+                                catch { }
                             }
                         }
                         catch (Exception ex)
@@ -2168,7 +2179,8 @@ namespace WinIsland.App
 
         private void StartWindowsNotificationPolling()
         {
-            _windowsNotifPollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            if (_windowsNotifPollTimer != null) return;
+            _windowsNotifPollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
             _windowsNotifPollTimer.Tick += async (s, e) => await PollWindowsNotificationsAsync();
             _windowsNotifPollTimer.Start();
             _ = PollWindowsNotificationsAsync();
@@ -2176,53 +2188,105 @@ namespace WinIsland.App
 
         private async Task PollWindowsNotificationsAsync()
         {
+            if (_isPollingNotifications) return;
+            _isPollingNotifications = true;
+
             try
             {
-                var listener = Windows.UI.Notifications.Management.UserNotificationListener.Current;
-                if (listener == null) return;
-
-                var notifs = await listener.GetNotificationsAsync(Windows.UI.Notifications.NotificationKinds.Toast);
-                if (notifs == null) return;
-
                 bool isFirstSeed = !_initialNotificationsSeeded;
                 _initialNotificationsSeeded = true;
 
-                foreach (var n in notifs)
+                // 1. Primary Source: Read full XML Toast Payloads from Windows Push Notification Database (wpndatabase.db)
+                // This captures all <text> nodes including <group>/<subgroup> and works across all 3rd-party apps (WhatsApp, Telegram, Discord, VS Code, etc.)
+                var dbNotifications = await Task.Run(() => WindowsNotificationReaderService.ReadFromWpnDatabase(25));
+                foreach (var item in dbNotifications)
                 {
-                    if (!_seenNotificationIds.Add(n.Id)) continue;
+                    if (!_seenNotificationKeys.Add(item.UniqueKey)) continue;
 
-                    string appName = "Windows";
-                    try
+                    if (isFirstSeed)
                     {
-                        if (n.AppInfo?.DisplayInfo?.DisplayName is { Length: > 0 } dispName)
-                        {
-                            appName = dispName;
-                        }
+                        _viewModel.AddNotification(item.AppName, item.Title, item.Body, item.AccentHex, skipIfDuplicate: true);
                     }
-                    catch { }
-
-                    var binding = n.Notification?.Visual?.GetBinding(Windows.UI.Notifications.KnownNotificationBindings.ToastGeneric);
-                    if (binding != null)
+                    else
                     {
-                        var texts = binding.GetTextElements().Select(t => t.Text).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
-                        if (texts.Count > 0)
+                        ShowNotificationToast(item.AppName, item.Title, item.Body, item.AccentHex);
+                    }
+                }
+
+                // 2. Secondary Source: WinRT UserNotificationListener (for any in-memory toasts not yet flushed to SQLite)
+                var listener = Windows.UI.Notifications.Management.UserNotificationListener.Current;
+                if (listener != null)
+                {
+                    var notifs = await listener.GetNotificationsAsync(Windows.UI.Notifications.NotificationKinds.Toast);
+                    if (notifs != null)
+                    {
+                        foreach (var n in notifs)
                         {
-                            string title = texts[0];
-                            string body = texts.Count > 1 ? string.Join(" ", texts.Skip(1)) : title;
-                            if (isFirstSeed)
+                            string rawAppName = "Windows";
+                            try
                             {
-                                // Populate Notification Center silently with existing real Windows notifications
-                                _viewModel.AddNotification(appName, title, body, "#0A84FF");
+                                if (n.AppInfo?.DisplayInfo?.DisplayName is { Length: > 0 } dispName)
+                                {
+                                    rawAppName = dispName;
+                                }
+                                else if (n.AppInfo?.AppUserModelId is { Length: > 0 } aumid)
+                                {
+                                    rawAppName = aumid;
+                                }
                             }
-                            else
+                            catch { }
+
+                            var (appName, accentHex) = WindowsNotificationReaderService.ResolveAppIdentity(rawAppName);
+
+                            var texts = new List<string>();
+                            var bindings = n.Notification?.Visual?.Bindings;
+                            if (bindings != null)
                             {
-                                ShowNotificationToast(appName, title, body, "#0A84FF");
+                                foreach (var b in bindings)
+                                {
+                                    foreach (var t in b.GetTextElements())
+                                    {
+                                        string cleaned = WindowsNotificationReaderService.CleanUnicodeControlChars(t.Text);
+                                        if (!string.IsNullOrWhiteSpace(cleaned) && !texts.Contains(cleaned, StringComparer.Ordinal))
+                                        {
+                                            texts.Add(cleaned);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (texts.Count > 0)
+                            {
+                                string title = texts[0];
+                                string rawBody = texts.Count > 1 ? string.Join(" • ", texts.Skip(1)) : title;
+                                string uniqueKey = $"{n.Id}|{appName}|{title}|{rawBody}";
+
+                                // Also check if wpndatabase.db already processed this exact notification ID + Title
+                                bool alreadySeenInDb = dbNotifications.Any(d => d.Id == n.Id && string.Equals(d.Title, title, StringComparison.Ordinal));
+                                if (!_seenNotificationKeys.Add(uniqueKey) || alreadySeenInDb) continue;
+
+                                string normalizedBody = WindowsNotificationReaderService.NormalizeNotificationText(appName, title, rawBody);
+                                if (isFirstSeed)
+                                {
+                                    _viewModel.AddNotification(appName, title, normalizedBody, accentHex, skipIfDuplicate: true);
+                                }
+                                else
+                                {
+                                    ShowNotificationToast(appName, title, normalizedBody, accentHex);
+                                }
                             }
                         }
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PollWindowsNotificationsAsync] Error: {ex.Message}");
+            }
+            finally
+            {
+                _isPollingNotifications = false;
+            }
         }
 
         #endregion

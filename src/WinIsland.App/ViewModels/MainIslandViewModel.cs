@@ -577,8 +577,16 @@ namespace WinIsland.App.ViewModels
                         foreach (var item in items)
                         {
                             item.IsExpanded = false;
+                            item.Title = WindowsNotificationReaderService.CleanUnicodeControlChars(item.Title);
+                            item.Message = WindowsNotificationReaderService.NormalizeNotificationText(item.AppName, item.Title, item.Message);
+                            var (_, resolvedAccent) = WindowsNotificationReaderService.ResolveAppIdentity(item.AppName);
+                            if (item.AccentHex == "#0A84FF" && resolvedAccent != "#0A84FF")
+                            {
+                                item.AccentHex = resolvedAccent;
+                            }
                             Notifications.Add(item);
                         }
+                        SaveNotifications();
                         NotifyNotificationCountChanged();
                     }
                 }
@@ -611,13 +619,36 @@ namespace WinIsland.App.ViewModels
             NotifyNotificationCountChanged();
         }
 
-        public void AddNotification(string appName, string title, string message, string accentHex)
+        public void AddNotification(string appName, string title, string message, string accentHex, bool skipIfDuplicate = false)
         {
+            string cleanTitle = WindowsNotificationReaderService.CleanUnicodeControlChars(title);
+            string normalizedMessage = WindowsNotificationReaderService.NormalizeNotificationText(appName, cleanTitle, message);
+
+            if (skipIfDuplicate)
+            {
+                bool exists = Notifications.Take(25).Any(n =>
+                    string.Equals(n.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(n.Title, cleanTitle, StringComparison.Ordinal) &&
+                    string.Equals(n.Message, normalizedMessage, StringComparison.Ordinal));
+                if (exists) return;
+            }
+            else if (Notifications.Count > 0)
+            {
+                var latest = Notifications[0];
+                if (string.Equals(latest.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(latest.Title, cleanTitle, StringComparison.Ordinal) &&
+                    string.Equals(latest.Message, normalizedMessage, StringComparison.Ordinal) &&
+                    Math.Abs((DateTime.Now - latest.Timestamp).TotalSeconds) < 8)
+                {
+                    return;
+                }
+            }
+
             var item = new NotificationItem
             {
                 AppName = appName,
-                Title = title,
-                Message = message,
+                Title = cleanTitle,
+                Message = normalizedMessage,
                 AccentHex = accentHex,
                 Timestamp = DateTime.Now,
                 IsRead = false,
