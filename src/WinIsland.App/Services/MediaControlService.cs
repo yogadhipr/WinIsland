@@ -238,41 +238,59 @@ namespace WinIsland.App.Services
 
         public async Task<bool> TryTogglePlayPauseAsync()
         {
-            if (_currentSession == null) return false;
-            try
+            if (_currentSession == null)
             {
-                return await _currentSession.TryTogglePlayPauseAsync();
+                UpdateCurrentSession();
             }
-            catch
+            if (_currentSession != null)
             {
-                return false;
+                try
+                {
+                    if (await _currentSession.TryTogglePlayPauseAsync())
+                        return true;
+                }
+                catch { }
             }
+            Core.Win32Interop.SendMediaKey(Core.Win32Interop.VK_MEDIA_PLAY_PAUSE);
+            return true;
         }
 
         public async Task<bool> TrySkipNextAsync()
         {
-            if (_currentSession == null) return false;
-            try
+            if (_currentSession == null)
             {
-                return await _currentSession.TrySkipNextAsync();
+                UpdateCurrentSession();
             }
-            catch
+            if (_currentSession != null)
             {
-                return false;
+                try
+                {
+                    if (await _currentSession.TrySkipNextAsync())
+                        return true;
+                }
+                catch { }
             }
+            Core.Win32Interop.SendMediaKey(Core.Win32Interop.VK_MEDIA_NEXT_TRACK);
+            return true;
         }
 
         public async Task<bool> TrySkipPreviousAsync()
         {
-            if (_currentSession == null) return false;
-            try
+            if (_currentSession == null)
             {
-                return await _currentSession.TrySkipPreviousAsync();
+                UpdateCurrentSession();
             }
-            catch
+            if (_currentSession != null)
             {
-                return false;
+                try
+                {
+                    if (await _currentSession.TrySkipPreviousAsync())
+                        return true;
+                }
+                catch { }
             }
+            Core.Win32Interop.SendMediaKey(Core.Win32Interop.VK_MEDIA_PREV_TRACK);
+            return true;
         }
 
         public async Task<bool> TrySeekAsync(TimeSpan targetPosition)

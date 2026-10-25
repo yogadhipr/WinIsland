@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -10,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using WinIsland.App.Core;
@@ -31,6 +36,8 @@ namespace WinIsland.App
         private readonly DispatcherTimer _ghostModeTimer;
         private readonly DispatcherTimer _rightClickHoldTimer;
         private readonly DispatcherTimer _toastAutoDismissTimer;
+        private readonly DispatcherTimer _hudFeedbackTimer;
+        private DispatcherTimer? _windowsNotifPollTimer;
         private SystemTrayService? _trayService;
 
         private bool _isExpanded;
@@ -40,10 +47,28 @@ namespace WinIsland.App
         private bool _isGhostModeActive;
         private bool _isRightMouseDown;
         private bool _isShowingCompactToast;
+        private bool _isInlineEditing;
 
-        private int _currentSlideIndex; // 0: Music, 1: Pomodoro, 2: TodoList, 3: Notifications, 4: Hydration, 5: FileDrop
+        private int _currentSlideIndex; // 0: Music, 1: Pomodoro, 2: TodoList, 3: Notifications, 4: FileDrop
         private bool _isLyricsOpen;
         private bool _isCalendarOpen;
+
+        // Todo Editor & Calendar state
+        private TodoTaskItem? _editingTask;
+        private string _selectedTaskColor = "#30D158";
+        private DateTime _editingTaskDate = DateTime.Today;
+        private int _editStartHour = 8;
+        private int _editStartMin;
+        private int _editEndHour = 9;
+        private int _editEndMin;
+        private string _activeTimeSegment = string.Empty;
+        private DateTime _calendarDisplayDate = DateTime.Today;
+        private DateTime _selectedCalendarDate = DateTime.Today;
+        private bool _isCalendarMonthMode;
+
+        // Windows Notification Listener tracking
+        private readonly HashSet<uint> _seenNotificationIds = new();
+        private bool _initialNotificationsSeeded;
 
         private IntPtr _currentHMonitor = IntPtr.Zero;
         private IntPtr _pendingHMonitor = IntPtr.Zero;
@@ -122,10 +147,24 @@ namespace WinIsland.App
                 DismissCompactToast();
             };
 
+            // 8. Transient HUD Feedback Pill Timer (1.4s)
+            _hudFeedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1400) };
+            _hudFeedbackTimer.Tick += (s, e) =>
+            {
+                _hudFeedbackTimer.Stop();
+                HudFeedbackBadge.Visibility = Visibility.Collapsed;
+            };
+
             // Connect ViewModel Notifications
             _viewModel.NotificationRequested += (app, title, msg, accent) =>
             {
                 Dispatcher.Invoke(() => ShowNotificationToast(app, title, msg, accent));
+            };
+
+            // Connect TodoTasks updates to re-render 24h timeline bar
+            _viewModel.TodoTasksUpdated += () =>
+            {
+                Dispatcher.Invoke(RenderTimelineBar);
             };
 
             // Hook ViewModel events & Services
@@ -139,7 +178,9 @@ namespace WinIsland.App
                     if (e.PropertyName == nameof(MainIslandViewModel.MediaInfo) ||
                         e.PropertyName == nameof(MainIslandViewModel.Telemetry) ||
                         e.PropertyName == nameof(MainIslandViewModel.CurrentState) ||
-                        e.PropertyName == nameof(MainIslandViewModel.IsPomoRunning))
+                        e.PropertyName == nameof(MainIslandViewModel.IsPomoRunning) ||
+                        e.PropertyName == nameof(MainIslandViewModel.IsMuted) ||
+                        e.PropertyName == nameof(MainIslandViewModel.VolumePercent))
                     {
                         UpdateUiStates();
                     }
@@ -147,6 +188,11 @@ namespace WinIsland.App
                     if (e.PropertyName == nameof(MainIslandViewModel.PomodoroProgressFraction))
                     {
                         UpdatePomodoroProgressArcs();
+                    }
+
+                    if (e.PropertyName == nameof(MainIslandViewModel.CurrentTimeString))
+                    {
+                        RenderTimelineBar();
                     }
                 });
             };
@@ -156,46 +202,17 @@ namespace WinIsland.App
                 Dispatcher.Invoke(UpdateUiStates);
             };
 
-            AudioHudService.Instance.VolumeChanged += (vol, muted) =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    if (VolumeSlider != null && Math.Abs(VolumeSlider.Value - vol * 100) > 1)
-                    {
-                        VolumeSlider.Value = vol * 100;
-                    }
-                    if (TxtVolumePercent != null)
-                    {
-                        TxtVolumePercent.Text = $"{(int)(vol * 100)}%";
-                    }
-                });
-            };
-
-            BrightnessService.Instance.BrightnessChanged += (br) =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    if (BrightnessSlider != null && Math.Abs(BrightnessSlider.Value - br) > 1)
-                    {
-                        BrightnessSlider.Value = br;
-                    }
-                    if (TxtBrightnessPercent != null)
-                    {
-                        TxtBrightnessPercent.Text = $"{br}%";
-                    }
-                });
-            };
-
             Loaded += OnMainWindowLoaded;
         }
 
         private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
         {
             ScrubberTrackContainer.SizeChanged += (s, ev) => UpdateMediaProgress();
-            StartPetWalkingAnimation();
-            InitBrightnessAndVolume();
+            TimelineTrackHost.SizeChanged += (s, ev) => RenderTimelineBar();
             NavigateToSlide(0, immediate: true);
             UpdatePomodoroProgressArcs();
+            RenderCalendar();
+            RenderTimelineBar();
             UpdateUiStates();
             InitWindowsNotificationListener();
         }
@@ -230,20 +247,76 @@ namespace WinIsland.App
             var itemCompact = new MenuItem { Header = "Compact Mode" };
             itemCompact.Click += (s, e) => CollapseIsland();
 
-            var itemMusic = new MenuItem { Header = "Music Player" };
+            var itemMusic = new MenuItem { Header = "🎵 Music Player" };
             itemMusic.Click += (s, e) => { NavigateToSlide(0); ExpandIsland(); };
 
-            var itemPomo = new MenuItem { Header = "Pomodoro Timer" };
+            var itemPomo = new MenuItem { Header = "⏱️ Pomodoro Timer" };
             itemPomo.Click += (s, e) => { NavigateToSlide(1); ExpandIsland(); };
 
-            var itemTodo = new MenuItem { Header = "TodoList & Calendar" };
+            var itemTodo = new MenuItem { Header = "✅ TodoList & Calendar" };
             itemTodo.Click += (s, e) => { NavigateToSlide(2); ExpandIsland(); };
 
-            var itemNotify = new MenuItem { Header = "Notification Center" };
+            var itemNotify = new MenuItem { Header = "🔔 Notification Center" };
             itemNotify.Click += (s, e) => { NavigateToSlide(3); ExpandIsland(); };
 
+            var itemFiles = new MenuItem { Header = "📁 File Tray" };
+            itemFiles.Click += (s, e) => { NavigateToSlide(4); ExpandIsland(); };
+
+            // Settings Submenu
+            var settingsMenu = new MenuItem { Header = "⚙️ Settings" };
+            var s = SettingsManager.Instance.Current;
+
+            var itemPrimaryMon = new MenuItem { Header = "Display: Primary Monitor", IsCheckable = true, IsChecked = s.DisplayTarget != "ActiveCursor" };
+            var itemCursorMon = new MenuItem { Header = "Display: Active Cursor Monitor", IsCheckable = true, IsChecked = s.DisplayTarget == "ActiveCursor" };
+
+            itemPrimaryMon.Click += (_, _) =>
+            {
+                s.DisplayTarget = "Primary";
+                itemPrimaryMon.IsChecked = true;
+                itemCursorMon.IsChecked = false;
+                SettingsManager.Instance.SaveSettings(s);
+                UpdateIslandPosition(force: true);
+            };
+            itemCursorMon.Click += (_, _) =>
+            {
+                s.DisplayTarget = "ActiveCursor";
+                itemCursorMon.IsChecked = true;
+                itemPrimaryMon.IsChecked = false;
+                SettingsManager.Instance.SaveSettings(s);
+                UpdateIslandPosition(force: true);
+            };
+
+            var itemAutoHideFs = new MenuItem { Header = "Auto-Hide in Fullscreen", IsCheckable = true, IsChecked = s.EnableAutoHideFullScreen };
+            itemAutoHideFs.Click += (_, _) =>
+            {
+                s.EnableAutoHideFullScreen = itemAutoHideFs.IsChecked;
+                SettingsManager.Instance.SaveSettings(s);
+            };
+
+            var itemRequireAlt = new MenuItem { Header = "Require Alt Key to Expand", IsCheckable = true, IsChecked = s.RequireAltKey };
+            itemRequireAlt.Click += (_, _) =>
+            {
+                s.RequireAltKey = itemRequireAlt.IsChecked;
+                SettingsManager.Instance.SaveSettings(s);
+            };
+
+            var itemStartup = new MenuItem { Header = "Run on Windows Startup", IsCheckable = true, IsChecked = s.RunOnStartup };
+            itemStartup.Click += (_, _) =>
+            {
+                s.RunOnStartup = itemStartup.IsChecked;
+                SettingsManager.Instance.SaveSettings(s);
+                SetRunOnStartupRegistry(s.RunOnStartup);
+            };
+
+            settingsMenu.Items.Add(itemPrimaryMon);
+            settingsMenu.Items.Add(itemCursorMon);
+            settingsMenu.Items.Add(new Separator());
+            settingsMenu.Items.Add(itemAutoHideFs);
+            settingsMenu.Items.Add(itemRequireAlt);
+            settingsMenu.Items.Add(itemStartup);
+
             var itemExit = new MenuItem { Header = "Exit WinIsland" };
-            itemExit.Click += (s, e) => Application.Current.Shutdown();
+            itemExit.Click += (s2, e2) => Application.Current.Shutdown();
 
             menu.Items.Add(itemExpand);
             menu.Items.Add(itemCompact);
@@ -252,6 +325,9 @@ namespace WinIsland.App
             menu.Items.Add(itemPomo);
             menu.Items.Add(itemTodo);
             menu.Items.Add(itemNotify);
+            menu.Items.Add(itemFiles);
+            menu.Items.Add(new Separator());
+            menu.Items.Add(settingsMenu);
             menu.Items.Add(new Separator());
             menu.Items.Add(itemExit);
 
@@ -262,6 +338,40 @@ namespace WinIsland.App
                 if (_isExpanded) CollapseIsland();
                 else ExpandIsland();
             };
+        }
+
+        private static void SetRunOnStartupRegistry(bool enable)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true);
+                if (key == null) return;
+                if (enable)
+                {
+                    string? exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                    if (!string.IsNullOrEmpty(exePath))
+                    {
+                        key.SetValue(AppName, $"\"{exePath}\"");
+                    }
+                }
+                else
+                {
+                    key.DeleteValue(AppName, false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SetRunOnStartupRegistry] Error: {ex.Message}");
+            }
+        }
+
+        private void ShowHudFeedback(string text)
+        {
+            if (HudFeedbackBadge == null || HudFeedbackText == null) return;
+            HudFeedbackText.Text = text;
+            HudFeedbackBadge.Visibility = Visibility.Visible;
+            _hudFeedbackTimer.Stop();
+            _hudFeedbackTimer.Start();
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -330,6 +440,7 @@ namespace WinIsland.App
             if (!_isExpanded && !_isTransitioning)
             {
                 _hoverTimer.Stop();
+                _hoverTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(_viewModel.Settings.HoverDelayMs, 50, 1500));
                 _hoverTimer.Start();
             }
         }
@@ -495,13 +606,13 @@ namespace WinIsland.App
                         ActivateTemporaryGhostMode(3.0);
                     }
 
-                    // Auto-collapse check for expanded state (after 200ms outside)
-                    if (_isExpanded && !_isTransitioning && !_isDraggingFile)
+                    // Do not auto-collapse while user is typing in an inline editor or dragging files
+                    if (_isExpanded && !_isTransitioning && !_isDraggingFile && !_isInlineEditing)
                     {
                         if (!isOverIsland)
                         {
                             _outsideTicks++;
-                            if (_outsideTicks >= 2) // 200ms
+                            if (_outsideTicks >= 3) // 300ms
                             {
                                 _outsideTicks = 0;
                                 await CollapseIslandAsync();
@@ -585,6 +696,7 @@ namespace WinIsland.App
 
         private void OnMinimizeClicked(object sender, RoutedEventArgs e)
         {
+            CloseAnyInlineEditors();
             CollapseIsland();
         }
 
@@ -592,11 +704,33 @@ namespace WinIsland.App
 
         public void CollapseIsland() => _ = CollapseIslandAsync();
 
+        private void CloseAnyInlineEditors()
+        {
+            if (PomodoroEditBorder != null && PomodoroEditBorder.Visibility == Visibility.Visible)
+            {
+                PomodoroEditBorder.Visibility = Visibility.Collapsed;
+                PomodoroTimeText.Visibility = Visibility.Visible;
+            }
+            if (TimePickerOverlayBorder != null && TimePickerOverlayBorder.Visibility == Visibility.Visible)
+            {
+                TimePickerOverlayBorder.Visibility = Visibility.Collapsed;
+            }
+            if (TaskEditorPanel != null && TaskEditorPanel.Visibility == Visibility.Visible)
+            {
+                TaskEditorPanel.Visibility = Visibility.Collapsed;
+            }
+            if (_isInlineEditing)
+            {
+                _isInlineEditing = false;
+                Win32Interop.SetAllowActivate(this, false);
+            }
+        }
+
         /// <summary>
         /// Staggered Expand:
         /// 1. Fade-out CompactView (80ms)
         /// 2. CompactView.Visibility = Collapsed
-        /// 3. Morph MainIslandBorder size 220x38 -> TargetWidth x 215, CornerRadius 22 -> 28 with BackEase (260ms)
+        /// 3. Morph MainIslandBorder size -> TargetWidth x 215, CornerRadius -> 30 with BackEase (260ms)
         /// 4. ExpandedView.Visibility = Visible & Fade-in (120ms)
         /// </summary>
         public async Task ExpandIslandAsync()
@@ -605,10 +739,25 @@ namespace WinIsland.App
             _isTransitioning = true;
             _hoverTimer.Stop();
 
+            // Clean up any active compact toast state so collapsing later returns to normal CompactStandardContent
+            if (_isShowingCompactToast)
+            {
+                _isShowingCompactToast = false;
+                _toastAutoDismissTimer.Stop();
+                CompactToastContent.Visibility = Visibility.Collapsed;
+                CompactStandardContent.Visibility = Visibility.Visible;
+                if (!(_currentSlideIndex == 0 && _isLyricsOpen))
+                {
+                    AmbientBottomGlow.Visibility = Visibility.Collapsed;
+                }
+            }
+
             var tcs = new TaskCompletionSource<bool>();
 
             try
             {
+                double startWidth = MainIslandBorder.ActualWidth > 0 ? MainIslandBorder.ActualWidth : 240;
+                double startHeight = MainIslandBorder.ActualHeight > 0 ? MainIslandBorder.ActualHeight : 38;
                 double targetWidth = GetCurrentTargetWidth();
 
                 var fadeOutCompact = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(80));
@@ -617,9 +766,9 @@ namespace WinIsland.App
                     CompactView.Visibility = Visibility.Collapsed;
 
                     var backEase = new BackEase { Amplitude = 0.22, EasingMode = EasingMode.EaseOut };
-                    var widthAnim = new DoubleAnimation(220, targetWidth, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
-                    var heightAnim = new DoubleAnimation(38, 215, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
-                    var radiusAnim = new DoubleAnimation(22, 28, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
+                    var widthAnim = new DoubleAnimation(startWidth, targetWidth, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
+                    var heightAnim = new DoubleAnimation(startHeight, 236, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
+                    var radiusAnim = new DoubleAnimation(22, 30, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
 
                     widthAnim.Completed += (s2, e2) =>
                     {
@@ -658,7 +807,7 @@ namespace WinIsland.App
         /// Staggered Collapse:
         /// 1. Fade-out ExpandedView (80ms)
         /// 2. ExpandedView.Visibility = Collapsed
-        /// 3. Morph MainIslandBorder size CurrentWidth x 215 -> 220x38, CornerRadius 28 -> 22 with BackEase (260ms)
+        /// 3. Morph MainIslandBorder size CurrentWidth x 215 -> 220x38, CornerRadius 30 -> 22 with BackEase (260ms)
         /// 4. CompactView.Visibility = Visible & Fade-in (120ms)
         /// </summary>
         public async Task CollapseIslandAsync()
@@ -666,25 +815,30 @@ namespace WinIsland.App
             if (!_isExpanded || _isTransitioning) return;
             _isTransitioning = true;
             _hoverTimer.Stop();
+            CloseAnyInlineEditors();
 
             var tcs = new TaskCompletionSource<bool>();
 
             try
             {
                 double currentWidth = MainIslandBorder.ActualWidth;
+                double compactWidth = _viewModel.IsPomoRunning ? 265.0 : 240.0;
 
                 var fadeOutExpanded = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(80));
                 fadeOutExpanded.Completed += (s, e) =>
                 {
                     ExpandedView.Visibility = Visibility.Collapsed;
+                    AmbientBottomGlow.Visibility = Visibility.Collapsed;
 
                     var backEase = new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut };
-                    var widthAnim = new DoubleAnimation(currentWidth, 220, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
-                    var heightAnim = new DoubleAnimation(215, 38, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
-                    var radiusAnim = new DoubleAnimation(28, 22, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
+                    var widthAnim = new DoubleAnimation(currentWidth, compactWidth, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
+                    var heightAnim = new DoubleAnimation(236, 38, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
+                    var radiusAnim = new DoubleAnimation(30, 22, TimeSpan.FromMilliseconds(260)) { EasingFunction = backEase };
 
                     widthAnim.Completed += (s2, e2) =>
                     {
+                        CompactStandardContent.Visibility = Visibility.Visible;
+                        CompactToastContent.Visibility = Visibility.Collapsed;
                         CompactView.Visibility = Visibility.Visible;
                         UpdateUiStates();
                         var fadeInCompact = new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(120));
@@ -718,12 +872,12 @@ namespace WinIsland.App
 
         private double GetCurrentTargetWidth()
         {
-            // Wide Mode (590px): when Music Live Lyrics is open OR when TodoList Calendar Timeline is open
+            // Wide Mode (700px): when Music Live Lyrics is open OR when TodoList Calendar Timeline is open
             if ((_currentSlideIndex == 0 && _isLyricsOpen) || (_currentSlideIndex == 2 && _isCalendarOpen))
             {
-                return 590.0;
+                return 700.0;
             }
-            return 450.0;
+            return 490.0;
         }
 
         private void AnimateCapsuleWidth(double targetWidth)
@@ -744,11 +898,13 @@ namespace WinIsland.App
 
         private void OnPrevSlideClicked(object sender, RoutedEventArgs e)
         {
+            CloseAnyInlineEditors();
             NavigateToSlide(_currentSlideIndex - 1);
         }
 
         private void OnNextSlideClicked(object sender, RoutedEventArgs e)
         {
+            CloseAnyInlineEditors();
             NavigateToSlide(_currentSlideIndex + 1);
         }
 
@@ -756,6 +912,7 @@ namespace WinIsland.App
         {
             if (sender is FrameworkElement elem && int.TryParse(elem.Tag?.ToString(), out int idx))
             {
+                CloseAnyInlineEditors();
                 NavigateToSlide(idx);
             }
         }
@@ -764,44 +921,50 @@ namespace WinIsland.App
         {
             if (sender is FrameworkElement elem && int.TryParse(elem.Tag?.ToString(), out int idx))
             {
+                CloseAnyInlineEditors();
                 NavigateToSlide(idx);
             }
         }
 
         public void NavigateToSlide(int newIndex, bool immediate = false)
         {
-            _currentSlideIndex = (newIndex % 6 + 6) % 6;
+            _currentSlideIndex = (newIndex % 5 + 5) % 5;
 
             // Update Slide Views Visibility
             SlideMusic.Visibility = _currentSlideIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
             SlidePomodoro.Visibility = _currentSlideIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
             SlideTodoList.Visibility = _currentSlideIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             SlideNotifications.Visibility = _currentSlideIndex == 3 ? Visibility.Visible : Visibility.Collapsed;
-            SlideHydration.Visibility = _currentSlideIndex == 4 ? Visibility.Visible : Visibility.Collapsed;
-            SlideFileDrop.Visibility = _currentSlideIndex == 5 ? Visibility.Visible : Visibility.Collapsed;
+            SlideFileDrop.Visibility = _currentSlideIndex == 4 ? Visibility.Visible : Visibility.Collapsed;
 
-            // Update Top Left Title Tag
-            TopSlideTitle.Text = _currentSlideIndex switch
-            {
-                0 => "Music",
-                1 => "Pomodoro",
-                2 => "TodoList",
-                3 => "Notify",
-                4 => "Control",
-                5 => "File Shelf",
-                _ => ""
-            };
-
-            // Update Pagination Dots (Active is elongated white pill 16x5, inactive 5x5 #48484A)
+            // Update Pagination Dots (Active is elongated white pill 16x4, inactive 4x4 #55FFFFFF)
             UpdatePaginationDots();
 
             // Update Micro Dock Icons
             UpdateMicroDockColors();
 
-            // Adjust Width if needed (Wide 590 vs Standard 450)
+            // Adjust Width if needed (Wide 640 vs Standard 460)
             if (_isExpanded && !immediate)
             {
                 AnimateCapsuleWidth(GetCurrentTargetWidth());
+            }
+
+            // Sync Ambient Bottom Glow for Slide 0 if lyrics were active
+            if (_currentSlideIndex == 0 && _isLyricsOpen)
+            {
+                AmbientBottomGlow.Visibility = Visibility.Visible;
+                AmbientBottomGlow.Opacity = 1.0;
+            }
+            else if (!_isShowingCompactToast)
+            {
+                AmbientBottomGlow.Visibility = Visibility.Collapsed;
+                AmbientBottomGlow.Opacity = 0.0;
+            }
+
+            if (_currentSlideIndex == 2)
+            {
+                RenderCalendar();
+                RenderTimelineBar();
             }
 
             UpdateUiStates();
@@ -809,9 +972,9 @@ namespace WinIsland.App
 
         private void UpdatePaginationDots()
         {
-            Border[] dots = { Dot0, Dot1, Dot2, Dot3, Dot4, Dot5 };
+            Border[] dots = { Dot0, Dot1, Dot2, Dot3, Dot4 };
             var activeBrush = Brushes.White;
-            var inactiveBrush = (Brush)new BrushConverter().ConvertFromString("#48484A")!;
+            var inactiveBrush = (Brush)new BrushConverter().ConvertFromString("#55FFFFFF")!;
 
             for (int i = 0; i < dots.Length; i++)
             {
@@ -822,7 +985,7 @@ namespace WinIsland.App
                 }
                 else
                 {
-                    dots[i].Width = 5;
+                    dots[i].Width = 4;
                     dots[i].Background = inactiveBrush;
                 }
             }
@@ -832,61 +995,56 @@ namespace WinIsland.App
         {
             var inactiveBrush = (Brush)new BrushConverter().ConvertFromString("#8E8E93")!;
 
-            // 1. Music (Pink/Coral #FF2D55)
-            DockIconMusic.Fill = _currentSlideIndex == 0
+            // 1. Music (Pink/Red #FF2D55)
+            DockMusicIcon.Fill = _currentSlideIndex == 0
                 ? (Brush)new BrushConverter().ConvertFromString("#FF2D55")!
                 : inactiveBrush;
 
             // 2. Pomodoro (Red/Orange #FF453A)
-            DockIconPomodoro.Stroke = _currentSlideIndex == 1
+            DockPomodoroIcon.Stroke = _currentSlideIndex == 1
                 ? (Brush)new BrushConverter().ConvertFromString("#FF453A")!
                 : inactiveBrush;
 
             // 3. TodoList (Green #30D158)
-            DockIconTodoList.Stroke = _currentSlideIndex == 2
+            DockTodoIcon.Stroke = _currentSlideIndex == 2
                 ? (Brush)new BrushConverter().ConvertFromString("#30D158")!
                 : inactiveBrush;
 
             // 4. Notifications (Blue #0A84FF)
-            DockIconNotifications.Stroke = _currentSlideIndex == 3
+            DockNotifyIcon.Stroke = _currentSlideIndex == 3
                 ? (Brush)new BrushConverter().ConvertFromString("#0A84FF")!
                 : inactiveBrush;
 
-            // 5. Hydration (Cyan #5AC8FA)
-            DockIconHydration.Stroke = _currentSlideIndex == 4
-                ? (Brush)new BrushConverter().ConvertFromString("#5AC8FA")!
-                : inactiveBrush;
-
-            // 6. File Drop (Orange #FF9F0A)
-            DockIconFileDrop.Stroke = _currentSlideIndex == 5
-                ? (Brush)new BrushConverter().ConvertFromString("#FF9F0A")!
+            // 5. File Tray (Purple #BF5AF2)
+            DockFileTrayIcon.Stroke = _currentSlideIndex == 4
+                ? (Brush)new BrushConverter().ConvertFromString("#BF5AF2")!
                 : inactiveBrush;
         }
 
-        private void OnBottomNavMouseEnter(object sender, MouseEventArgs e)
+        private void OnBottomDockMouseEnter(object sender, MouseEventArgs e)
         {
             var fadeOutDots = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(100));
             fadeOutDots.Completed += (s, ev) =>
             {
                 PaginationDotsPanel.Visibility = Visibility.Collapsed;
-                MicroDockBorder.Visibility = Visibility.Visible;
+                BottomIconDockBorder.Visibility = Visibility.Visible;
                 var fadeInDock = new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(120));
-                MicroDockBorder.BeginAnimation(UIElement.OpacityProperty, fadeInDock);
+                BottomIconDockBorder.BeginAnimation(UIElement.OpacityProperty, fadeInDock);
             };
             PaginationDotsPanel.BeginAnimation(UIElement.OpacityProperty, fadeOutDots);
         }
 
-        private void OnBottomNavMouseLeave(object sender, MouseEventArgs e)
+        private void OnBottomDockMouseLeave(object sender, MouseEventArgs e)
         {
             var fadeOutDock = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(100));
             fadeOutDock.Completed += (s, ev) =>
             {
-                MicroDockBorder.Visibility = Visibility.Collapsed;
+                BottomIconDockBorder.Visibility = Visibility.Collapsed;
                 PaginationDotsPanel.Visibility = Visibility.Visible;
                 var fadeInDots = new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(120));
                 PaginationDotsPanel.BeginAnimation(UIElement.OpacityProperty, fadeInDots);
             };
-            MicroDockBorder.BeginAnimation(UIElement.OpacityProperty, fadeOutDock);
+            BottomIconDockBorder.BeginAnimation(UIElement.OpacityProperty, fadeOutDock);
         }
 
         #endregion
@@ -899,15 +1057,43 @@ namespace WinIsland.App
 
             if (_isLyricsOpen)
             {
-                LyricsSplitPanel.Visibility = Visibility.Visible;
+                LyricsPanel.Visibility = Visibility.Visible;
+                LyricsSplitColumn.Width = GridLength.Auto;
                 LyricsToggleBorder.Background = (Brush)new BrushConverter().ConvertFromString("#2EFFFFFF")!;
                 LyricsQuoteGlyph.Fill = (Brush)new BrushConverter().ConvertFromString("#FF9F0A")!;
+                _ = _viewModel.EnsureLyricsLoadedAsync();
+
+                // Amber/warm bottom glow for lyrics
+                AmbientBottomGlow.Background = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0.5, 0),
+                    EndPoint = new Point(0.5, 1),
+                    GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(Colors.Transparent, 0.0),
+                        new GradientStop((Color)ColorConverter.ConvertFromString("#CC9A4820"), 1.0)
+                    }
+                };
+                AmbientBottomGlow.Visibility = Visibility.Visible;
+                var fadeInGlow = new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(200));
+                AmbientBottomGlow.BeginAnimation(UIElement.OpacityProperty, fadeInGlow);
             }
             else
             {
-                LyricsSplitPanel.Visibility = Visibility.Collapsed;
+                LyricsPanel.Visibility = Visibility.Collapsed;
+                LyricsSplitColumn.Width = GridLength.Auto;
                 LyricsToggleBorder.Background = (Brush)new BrushConverter().ConvertFromString("#14FFFFFF")!;
                 LyricsQuoteGlyph.Fill = (Brush)new BrushConverter().ConvertFromString("#8E8E93")!;
+
+                var fadeOutGlow = new DoubleAnimation(AmbientBottomGlow.Opacity, 0.0, TimeSpan.FromMilliseconds(150));
+                fadeOutGlow.Completed += (s, ev) =>
+                {
+                    if (!_isLyricsOpen && !_isShowingCompactToast)
+                    {
+                        AmbientBottomGlow.Visibility = Visibility.Collapsed;
+                    }
+                };
+                AmbientBottomGlow.BeginAnimation(UIElement.OpacityProperty, fadeOutGlow);
             }
 
             AnimateCapsuleWidth(GetCurrentTargetWidth());
@@ -916,7 +1102,11 @@ namespace WinIsland.App
 
         private void OnVolumeIconClicked(object sender, RoutedEventArgs e)
         {
-            NavigateToSlide(4); // Navigate to Slide 4 (Control Center with full sliders)
+            AudioHudService.Instance.ToggleMute();
+            bool muted = AudioHudService.Instance.IsMuted;
+            int vol = (int)Math.Round(AudioHudService.Instance.CurrentVolume * 100);
+            ShowHudFeedback(muted ? "🔇 Muted" : $"🔊 {vol}%");
+            UpdateUiStates();
         }
 
         #endregion
@@ -927,8 +1117,8 @@ namespace WinIsland.App
         {
             double frac = _viewModel.PomodoroProgressFraction;
 
-            // 1. Main Pomodoro Ring (78x78px, Center 39,39, Radius 33)
-            PomodoroProgressArc.Data = CreateArcGeometry(new Point(39, 39), 33, frac);
+            // 1. Main Pomodoro Ring (82x82px, Center 41,41, Radius 37.5)
+            PomodoroProgressArc.Data = CreateArcGeometry(new Point(41, 41), 37.5, frac);
 
             // 2. Top Header Mini Ring (14x14px, Center 7,7, Radius 5)
             TopMiniProgressArc.Data = CreateArcGeometry(new Point(7, 7), 5, frac);
@@ -968,45 +1158,90 @@ namespace WinIsland.App
             }
             _viewModel.AdjustPomoMinutes(deltaMins);
             UpdatePomodoroProgressArcs();
+            ShowHudFeedback($"⏱️ {_viewModel.PomoTimeRemaining}");
             e.Handled = true;
         }
 
         private void OnPomodoroTimeClicked(object sender, MouseButtonEventArgs e)
         {
-            // Toggle between 15m, 25m, 45m, 50m
-            int currentMinutes = int.Parse(_viewModel.PomoTimeRemaining.Split(':')[0]);
-            int next = currentMinutes switch
+            // Open inline custom minutes editor
+            string currentMins = _viewModel.PomoTimeRemaining.Split(':')[0].TrimStart('0');
+            if (string.IsNullOrEmpty(currentMins)) currentMins = "1";
+
+            PomodoroTimeText.Visibility = Visibility.Collapsed;
+            PomodoroEditBorder.Visibility = Visibility.Visible;
+            TxtPomodoroMinutesInput.Text = currentMins;
+
+            _isInlineEditing = true;
+            Win32Interop.SetAllowActivate(this, true);
+            TxtPomodoroMinutesInput.Focus();
+            TxtPomodoroMinutesInput.SelectAll();
+            e.Handled = true;
+        }
+
+        private void CommitPomodoroMinutesEdit()
+        {
+            if (PomodoroEditBorder.Visibility != Visibility.Visible) return;
+
+            if (int.TryParse(TxtPomodoroMinutesInput.Text.Trim(), out int mins) && mins > 0)
             {
-                15 => 25,
-                25 => 45,
-                45 => 50,
-                50 => 15,
-                _ => 25
-            };
-            _viewModel.SetPomoDuration(next, true);
-            UpdatePomodoroProgressArcs();
+                mins = Math.Clamp(mins, 1, 180);
+                _viewModel.SetPomoDuration(mins, _viewModel.PomoModeName == "Focus time");
+                UpdatePomodoroProgressArcs();
+            }
+
+            PomodoroEditBorder.Visibility = Visibility.Collapsed;
+            PomodoroTimeText.Visibility = Visibility.Visible;
+            _isInlineEditing = false;
+            Win32Interop.SetAllowActivate(this, false);
+        }
+
+        private void OnPomodoroMinutesKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                CommitPomodoroMinutesEdit();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                PomodoroEditBorder.Visibility = Visibility.Collapsed;
+                PomodoroTimeText.Visibility = Visibility.Visible;
+                _isInlineEditing = false;
+                Win32Interop.SetAllowActivate(this, false);
+                e.Handled = true;
+            }
+        }
+
+        private void OnPomodoroMinutesLostFocus(object sender, RoutedEventArgs e)
+        {
+            CommitPomodoroMinutesEdit();
         }
 
         private void OnPomodoroShortBreakClicked(object sender, RoutedEventArgs e)
         {
+            CloseAnyInlineEditors();
             _viewModel.SetPomoDuration(5, isFocus: false);
             UpdatePomodoroProgressArcs();
         }
 
         private void OnPomodoroFocusClicked(object sender, RoutedEventArgs e)
         {
+            CloseAnyInlineEditors();
             _viewModel.SetPomoDuration(25, isFocus: true);
             UpdatePomodoroProgressArcs();
         }
 
         private void OnPomodoroPlayClicked(object sender, RoutedEventArgs e)
         {
+            CloseAnyInlineEditors();
             _viewModel.TogglePomoCommand.Execute(null);
             UpdateUiStates();
         }
 
         private void OnPomodoroResetClicked(object sender, RoutedEventArgs e)
         {
+            CloseAnyInlineEditors();
             _viewModel.ResetPomoCommand.Execute(null);
             UpdatePomodoroProgressArcs();
             UpdateUiStates();
@@ -1014,7 +1249,7 @@ namespace WinIsland.App
 
         #endregion
 
-        #region Slide 2: TodoList & Expandable Calendar Timeline
+        #region Slide 2: TodoList, Inline Task Editor & Expandable Calendar Timeline
 
         private void OnCalendarToggleClicked(object sender, RoutedEventArgs e)
         {
@@ -1022,13 +1257,17 @@ namespace WinIsland.App
 
             if (_isCalendarOpen)
             {
-                CalendarSplitPanel.Visibility = Visibility.Visible;
-                CalBorder.Background = (Brush)new BrushConverter().ConvertFromString("#30D158")!;
-                CalGlyph.Stroke = Brushes.Black;
+                CalendarExpandPanel.Visibility = Visibility.Visible;
+                CalendarColumn.Width = GridLength.Auto;
+                CalBorder.Background = (Brush)new BrushConverter().ConvertFromString("#2630D158")!;
+                CalGlyph.Stroke = (Brush)new BrushConverter().ConvertFromString("#30D158")!;
+                RenderCalendar();
+                RenderTimelineBar();
             }
             else
             {
-                CalendarSplitPanel.Visibility = Visibility.Collapsed;
+                CalendarExpandPanel.Visibility = Visibility.Collapsed;
+                CalendarColumn.Width = GridLength.Auto;
                 CalBorder.Background = (Brush)new BrushConverter().ConvertFromString("#1C1C1E")!;
                 CalGlyph.Stroke = (Brush)new BrushConverter().ConvertFromString("#8E8E93")!;
             }
@@ -1045,21 +1284,593 @@ namespace WinIsland.App
             }
         }
 
+        private void OnAddTaskClicked(object sender, RoutedEventArgs e)
+        {
+            OpenTaskEditor(null);
+        }
+
         private void OnEditTaskClicked(object sender, RoutedEventArgs e)
         {
-            // Add a new quick task or toggle status
-            _viewModel.AddTaskCommand.Execute(null);
+            // Open editor for the first uncompleted task on the selected date (or first task, or new task if empty)
+            var target = _viewModel.FilteredTodoTasks.FirstOrDefault(t => !t.IsCompleted)
+                         ?? _viewModel.FilteredTodoTasks.FirstOrDefault()
+                         ?? _viewModel.TodoTasks.FirstOrDefault();
+            OpenTaskEditor(target);
+        }
+
+        private void OnEditSingleTaskClicked(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            if (sender is FrameworkElement btn && btn.Tag is TodoTaskItem task)
+            {
+                OpenTaskEditor(task);
+            }
+        }
+
+        private void OnDeleteSingleTaskClicked(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            if (sender is FrameworkElement btn && btn.Tag is TodoTaskItem task)
+            {
+                _viewModel.DeleteTask(task);
+                RenderCalendar();
+                ShowHudFeedback("🗑️ Task Deleted");
+            }
+        }
+
+        private void OpenTaskEditor(TodoTaskItem? taskToEdit)
+        {
+            _editingTask = taskToEdit;
+            if (TimePickerOverlayBorder != null)
+            {
+                TimePickerOverlayBorder.Visibility = Visibility.Collapsed;
+            }
+
+            if (taskToEdit != null)
+            {
+                TxtTaskEditorHeader.Text = "Edit Task";
+                TxtTaskTitleInput.Text = taskToEdit.Title;
+                _editingTaskDate = taskToEdit.TaskDate;
+                (_editStartHour, _editStartMin, _editEndHour, _editEndMin) = taskToEdit.GetParsedTimeParts();
+                SelectTaskColorDot(taskToEdit.CategoryColor);
+            }
+            else
+            {
+                TxtTaskEditorHeader.Text = "Add Task";
+                TxtTaskTitleInput.Text = "";
+                _editingTaskDate = _selectedCalendarDate;
+                int nowH = DateTime.Now.Hour;
+                _editStartHour = nowH;
+                _editStartMin = 0;
+                _editEndHour = (nowH + 1) % 24;
+                _editEndMin = 0;
+                SelectTaskColorDot("#30D158");
+            }
+
+            UpdateTaskEditorDateTimeUi();
+
+            TaskEditorPanel.Visibility = Visibility.Visible;
+            _isInlineEditing = true;
+            Win32Interop.SetAllowActivate(this, true);
+            TxtTaskTitleInput.Focus();
+            TxtTaskTitleInput.SelectAll();
+        }
+
+        private void UpdateTaskEditorDateTimeUi()
+        {
+            if (TxtTaskEditorDate != null)
+            {
+                TxtTaskEditorDate.Text = _editingTaskDate.Date == DateTime.Today
+                    ? $"Today ({_editingTaskDate:dd MMM})"
+                    : _editingTaskDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture);
+            }
+            if (BtnStartHour != null) BtnStartHour.Content = _editStartHour.ToString("D2");
+            if (BtnStartMin != null) BtnStartMin.Content = _editStartMin.ToString("D2");
+            if (BtnEndHour != null) BtnEndHour.Content = _editEndHour.ToString("D2");
+            if (BtnEndMin != null) BtnEndMin.Content = _editEndMin.ToString("D2");
+        }
+
+        private void SyncEditorDateWithCalendar()
+        {
+            _selectedCalendarDate = _editingTaskDate.Date;
+            _calendarDisplayDate = _editingTaskDate.Date;
+            _viewModel.SelectedTaskDate = _editingTaskDate.Date;
+            UpdateTaskEditorDateTimeUi();
+            RenderCalendar();
+        }
+
+        private void OnTaskDatePrevClicked(object sender, RoutedEventArgs e)
+        {
+            _editingTaskDate = _editingTaskDate.AddDays(-1);
+            SyncEditorDateWithCalendar();
+        }
+
+        private void OnTaskDateNextClicked(object sender, RoutedEventArgs e)
+        {
+            _editingTaskDate = _editingTaskDate.AddDays(1);
+            SyncEditorDateWithCalendar();
+        }
+
+        private void OnTaskDateSelectorWheel(object sender, MouseWheelEventArgs e)
+        {
+            int delta = e.Delta > 0 ? 1 : -1;
+            _editingTaskDate = _editingTaskDate.AddDays(delta);
+            SyncEditorDateWithCalendar();
+            e.Handled = true;
+        }
+
+        private void OnTaskDateTextClicked(object sender, MouseButtonEventArgs e)
+        {
+            // Toggle Calendar panel open so user can also click any date directly on the calendar
+            if (!_isCalendarOpen)
+            {
+                OnCalendarToggleClicked(sender, new RoutedEventArgs());
+            }
+            e.Handled = true;
+        }
+
+        private void OnTimeSegmentMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (sender is FrameworkElement btn && btn.Tag is string segment)
+            {
+                int dir = e.Delta > 0 ? 1 : -1;
+                int minStep = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 1 : 5;
+
+                switch (segment)
+                {
+                    case "StartHour":
+                        _editStartHour = (_editStartHour + dir + 24) % 24;
+                        break;
+                    case "StartMin":
+                        _editStartMin = (_editStartMin + dir * minStep + 60) % 60;
+                        break;
+                    case "EndHour":
+                        _editEndHour = (_editEndHour + dir + 24) % 24;
+                        break;
+                    case "EndMin":
+                        _editEndMin = (_editEndMin + dir * minStep + 60) % 60;
+                        break;
+                }
+
+                UpdateTaskEditorDateTimeUi();
+                e.Handled = true;
+            }
+        }
+
+        private void OnTimeSegmentClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement btn && btn.Tag is string segment)
+            {
+                _activeTimeSegment = segment;
+                OpenTimePickerOverlay(segment);
+            }
+        }
+
+        private void OpenTimePickerOverlay(string segment)
+        {
+            if (TimePickerOverlayBorder == null || TimePickerValuesGrid == null || TxtTimePickerOverlayTitle == null) return;
+
+            bool isHour = segment.EndsWith("Hour", StringComparison.Ordinal);
+            TxtTimePickerOverlayTitle.Text = segment switch
+            {
+                "StartHour" => "Pilih Jam Mulai (00–23)",
+                "StartMin" => "Pilih Menit Mulai (00–55)",
+                "EndHour" => "Pilih Jam Selesai (00–23)",
+                _ => "Pilih Menit Selesai (00–55)"
+            };
+
+            int currentVal = segment switch
+            {
+                "StartHour" => _editStartHour,
+                "StartMin" => _editStartMin,
+                "EndHour" => _editEndHour,
+                _ => _editEndMin
+            };
+
+            TimePickerValuesGrid.Children.Clear();
+            var greenBrush = (Brush)new BrushConverter().ConvertFromString("#30D158")!;
+            var normalBg = (Brush)new BrushConverter().ConvertFromString("#24242E")!;
+
+            if (isHour)
+            {
+                for (int h = 0; h < 24; h++)
+                {
+                    int captured = h;
+                    bool selected = h == currentVal;
+                    var itemBtn = CreateTimeGridCellButton(h.ToString("D2"), selected, greenBrush, normalBg, () =>
+                    {
+                        if (_activeTimeSegment == "StartHour")
+                        {
+                            _editStartHour = captured;
+                            if (_editEndHour <= _editStartHour)
+                            {
+                                _editEndHour = (_editStartHour + 1) % 24;
+                            }
+                        }
+                        else
+                        {
+                            _editEndHour = captured;
+                        }
+                        UpdateTaskEditorDateTimeUi();
+                        TimePickerOverlayBorder.Visibility = Visibility.Collapsed;
+                    });
+                    TimePickerValuesGrid.Children.Add(itemBtn);
+                }
+            }
+            else
+            {
+                for (int m = 0; m < 60; m += 5)
+                {
+                    int captured = m;
+                    bool selected = m == currentVal;
+                    var itemBtn = CreateTimeGridCellButton(m.ToString("D2"), selected, greenBrush, normalBg, () =>
+                    {
+                        if (_activeTimeSegment == "StartMin") _editStartMin = captured;
+                        else _editEndMin = captured;
+                        UpdateTaskEditorDateTimeUi();
+                        TimePickerOverlayBorder.Visibility = Visibility.Collapsed;
+                    });
+                    TimePickerValuesGrid.Children.Add(itemBtn);
+                }
+            }
+
+            TimePickerOverlayBorder.Visibility = Visibility.Visible;
+        }
+
+        private static Border CreateTimeGridCellButton(string label, bool isSelected, Brush activeBrush, Brush normalBrush, Action onClick)
+        {
+            var bd = new Border
+            {
+                Background = isSelected ? activeBrush : normalBrush,
+                CornerRadius = new CornerRadius(5),
+                Margin = new Thickness(1.5),
+                Padding = new Thickness(0, 3, 0, 3),
+                Cursor = Cursors.Hand
+            };
+
+            var tb = new TextBlock
+            {
+                Text = label,
+                FontSize = 9.5,
+                FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold,
+                Foreground = isSelected ? Brushes.Black : Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            bd.Child = tb;
+            bd.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                onClick();
+            };
+            return bd;
+        }
+
+        private void OnCloseTimePickerOverlayClicked(object sender, RoutedEventArgs e)
+        {
+            if (TimePickerOverlayBorder != null)
+            {
+                TimePickerOverlayBorder.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void SelectTaskColorDot(string hex)
+        {
+            _selectedTaskColor = string.IsNullOrWhiteSpace(hex) ? "#30D158" : hex;
+            Border[] dots = { ColorDotGreen, ColorDotBlue, ColorDotOrange, ColorDotPurple };
+            foreach (var d in dots)
+            {
+                if (d == null) continue;
+                bool match = string.Equals(d.Tag?.ToString(), _selectedTaskColor, StringComparison.OrdinalIgnoreCase);
+                d.BorderBrush = match ? Brushes.White : Brushes.Transparent;
+                d.BorderThickness = new Thickness(match ? 1.5 : 0);
+            }
+        }
+
+        private void OnTaskColorSelected(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement el && el.Tag is string hex)
+            {
+                SelectTaskColorDot(hex);
+            }
+        }
+
+        private void OnSaveTaskEditorClicked(object sender, RoutedEventArgs e)
+        {
+            CommitTaskEditor();
+        }
+
+        private void OnCancelTaskEditorClicked(object sender, RoutedEventArgs e)
+        {
+            CloseAnyInlineEditors();
+        }
+
+        private void OnTaskEditorKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                CommitTaskEditor();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                if (TimePickerOverlayBorder != null && TimePickerOverlayBorder.Visibility == Visibility.Visible)
+                {
+                    TimePickerOverlayBorder.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                    return;
+                }
+                CloseAnyInlineEditors();
+                e.Handled = true;
+            }
+        }
+
+        private void CommitTaskEditor()
+        {
+            string title = TxtTaskTitleInput.Text.Trim();
+            string timeRange = $"{_editStartHour:D2}:{_editStartMin:D2}-{_editEndHour:D2}:{_editEndMin:D2}";
+
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                _selectedCalendarDate = _editingTaskDate.Date;
+                _calendarDisplayDate = _editingTaskDate.Date;
+
+                if (_editingTask != null)
+                {
+                    _viewModel.UpdateTask(_editingTask, title, _editingTaskDate, timeRange, _selectedTaskColor);
+                    ShowHudFeedback($"✓ Saved ({_editingTaskDate:dd MMM})");
+                }
+                else
+                {
+                    _viewModel.AddCustomTask(title, _editingTaskDate, timeRange, _selectedTaskColor);
+                    ShowHudFeedback($"✓ Added ({_editingTaskDate:dd MMM})");
+                }
+
+                RenderCalendar();
+                RenderTimelineBar();
+            }
+
+            CloseAnyInlineEditors();
+        }
+
+        private void OnCalendarPrevClicked(object sender, RoutedEventArgs e)
+        {
+            _calendarDisplayDate = _isCalendarMonthMode
+                ? _calendarDisplayDate.AddMonths(-1)
+                : _calendarDisplayDate.AddDays(-7);
+            RenderCalendar();
+        }
+
+        private void OnCalendarNextClicked(object sender, RoutedEventArgs e)
+        {
+            _calendarDisplayDate = _isCalendarMonthMode
+                ? _calendarDisplayDate.AddMonths(1)
+                : _calendarDisplayDate.AddDays(7);
+            RenderCalendar();
+        }
+
+        private void OnCalendarModeChanged(object sender, RoutedEventArgs e)
+        {
+            if (RbCalendarMonth == null || RbCalendarWeek == null) return;
+            _isCalendarMonthMode = RbCalendarMonth.IsChecked == true;
+            RenderCalendar();
+        }
+
+        private void RenderCalendar()
+        {
+            if (CalendarDatesGrid == null || TxtCalendarMonthYear == null) return;
+
+            TxtCalendarMonthYear.Text = _calendarDisplayDate.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+            CalendarDatesGrid.Children.Clear();
+
+            if (TimelineSectionPanel != null)
+            {
+                TimelineSectionPanel.Visibility = _isCalendarMonthMode ? Visibility.Collapsed : Visibility.Visible;
+            }
+
+            var greenBrush = (Brush)new BrushConverter().ConvertFromString("#30D158")!;
+            var todayBorderBrush = (Brush)new BrushConverter().ConvertFromString("#6630D158")!;
+            var hasTaskBorderBrush = (Brush)new BrushConverter().ConvertFromString("#8830D158")!;
+            var normalTextBrush = (Brush)new BrushConverter().ConvertFromString("#C7C7CC")!;
+            var dimTextBrush = (Brush)new BrushConverter().ConvertFromString("#48484A")!;
+
+            if (!_isCalendarMonthMode)
+            {
+                // Week Mode: 7 days starting Sunday of _calendarDisplayDate's week
+                int diff = (int)_calendarDisplayDate.DayOfWeek;
+                DateTime startOfWeek = _calendarDisplayDate.AddDays(-diff);
+
+                for (int i = 0; i < 7; i++)
+                {
+                    DateTime day = startOfWeek.AddDays(i);
+                    bool isSelected = day.Date == _selectedCalendarDate.Date;
+                    bool isToday = day.Date == DateTime.Today;
+                    bool hasTasks = _viewModel.HasTasksOnDate(day);
+
+                    var cell = new Border
+                    {
+                        Width = 20,
+                        Height = 20,
+                        Margin = new Thickness(0, 2, 0, 2),
+                        CornerRadius = new CornerRadius(10),
+                        Background = isSelected ? greenBrush : (isToday ? todayBorderBrush : Brushes.Transparent),
+                        BorderBrush = (!isSelected && hasTasks) ? hasTaskBorderBrush : Brushes.Transparent,
+                        BorderThickness = new Thickness((!isSelected && hasTasks) ? 1.2 : 0),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Cursor = Cursors.Hand,
+                        Tag = day
+                    };
+
+                    var tb = new TextBlock
+                    {
+                        Text = day.Day.ToString(),
+                        FontSize = 9.5,
+                        FontWeight = (isSelected || isToday || hasTasks) ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = isSelected ? Brushes.Black : normalTextBrush,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    cell.Child = tb;
+                    cell.MouseLeftButtonUp += OnCalendarDayCellClicked;
+                    CalendarDatesGrid.Children.Add(cell);
+                }
+            }
+            else
+            {
+                // Compact Month Mode: 28 cells (4 weeks centered around current display month)
+                DateTime firstOfMonth = new DateTime(_calendarDisplayDate.Year, _calendarDisplayDate.Month, 1);
+                DateTime startGrid = firstOfMonth.AddDays(-(int)firstOfMonth.DayOfWeek);
+
+                // If selected date is in the last rows of the month, shift window by 1-2 weeks so whole month is reachable
+                if (_calendarDisplayDate.Day > 21)
+                {
+                    startGrid = startGrid.AddDays(7);
+                }
+
+                for (int i = 0; i < 28; i++)
+                {
+                    DateTime day = startGrid.AddDays(i);
+                    bool isCurrentMonth = day.Month == _calendarDisplayDate.Month;
+                    bool isSelected = day.Date == _selectedCalendarDate.Date;
+                    bool isToday = day.Date == DateTime.Today;
+                    bool hasTasks = _viewModel.HasTasksOnDate(day);
+
+                    var cell = new Border
+                    {
+                        Width = 20,
+                        Height = 16,
+                        Margin = new Thickness(0, 1, 0, 1),
+                        CornerRadius = new CornerRadius(8),
+                        Background = isSelected ? greenBrush : (isToday ? todayBorderBrush : Brushes.Transparent),
+                        BorderBrush = (!isSelected && hasTasks) ? hasTaskBorderBrush : Brushes.Transparent,
+                        BorderThickness = new Thickness((!isSelected && hasTasks) ? 1.2 : 0),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Cursor = Cursors.Hand,
+                        Tag = day
+                    };
+
+                    var tb = new TextBlock
+                    {
+                        Text = day.Day.ToString(),
+                        FontSize = 8.5,
+                        FontWeight = (isSelected || isToday || hasTasks) ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = isSelected ? Brushes.Black : (isCurrentMonth ? normalTextBrush : dimTextBrush),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    cell.Child = tb;
+                    cell.MouseLeftButtonUp += OnCalendarDayCellClicked;
+                    CalendarDatesGrid.Children.Add(cell);
+                }
+            }
+        }
+
+        private void OnCalendarDayCellClicked(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement cell && cell.Tag is DateTime dt)
+            {
+                _selectedCalendarDate = dt.Date;
+                _calendarDisplayDate = dt.Date;
+                _viewModel.SelectedTaskDate = dt.Date;
+
+                // If Task Editor is currently open, also update the task's date to the clicked calendar date!
+                if (TaskEditorPanel != null && TaskEditorPanel.Visibility == Visibility.Visible)
+                {
+                    _editingTaskDate = dt.Date;
+                    UpdateTaskEditorDateTimeUi();
+                }
+
+                RenderCalendar();
+                RenderTimelineBar();
+                ShowHudFeedback($"📅 {dt:ddd, d MMM}");
+            }
+        }
+
+        private void RenderTimelineBar()
+        {
+            if (TimelinePillsCanvas == null || TimelineCurrentTimeLine == null || TimelineTrackHost == null) return;
+
+            double trackWidth = TimelineTrackHost.ActualWidth > 20 ? TimelineTrackHost.ActualWidth : 186.0;
+            TimelinePillsCanvas.Width = trackWidth;
+            TimelinePillsCanvas.Children.Clear();
+
+            foreach (var task in _viewModel.FilteredTodoTasks)
+            {
+                double startRatio = Math.Clamp(task.StartHour / 24.0, 0.0, 0.96);
+                double durRatio = Math.Clamp(task.DurationHours / 24.0, 0.03, 1.0 - startRatio);
+
+                double left = startRatio * trackWidth;
+                double width = Math.Max(6.0, durRatio * trackWidth);
+
+                Brush pillBrush;
+                try
+                {
+                    pillBrush = (Brush)new BrushConverter().ConvertFromString(task.CategoryColor)!;
+                }
+                catch
+                {
+                    pillBrush = Brushes.LimeGreen;
+                }
+
+                var pill = new Border
+                {
+                    Width = width,
+                    Height = 6,
+                    CornerRadius = new CornerRadius(3),
+                    Background = pillBrush,
+                    Opacity = task.IsCompleted ? 0.45 : 1.0,
+                    ToolTip = $"{task.Title} ({task.DisplaySchedule})"
+                };
+
+                Canvas.SetLeft(pill, left);
+                Canvas.SetTop(pill, 3);
+                TimelinePillsCanvas.Children.Add(pill);
+            }
+
+            // Position current time white line
+            var now = DateTime.Now;
+            double nowHours = now.Hour + now.Minute / 60.0;
+            double nowX = Math.Clamp((nowHours / 24.0) * (trackWidth - 2.0), 0.0, trackWidth - 2.0);
+            TimelineCurrentTimeLine.Margin = new Thickness(nowX, 0, 0, 0);
+            TimelineCurrentTimeLine.ToolTip = $"Now ({now:HH:mm})";
         }
 
         #endregion
 
         #region Slide 3: Notification Center & Live Toast System
 
-        public void ShowNotificationToast(string appName, string title, string message, string accentHex)
+        private void OnNotificationCardClicked(object sender, MouseButtonEventArgs e)
         {
-            _viewModel.AddNotification(appName, title, message, accentHex);
+            if (sender is FrameworkElement card && card.DataContext is NotificationItem item)
+            {
+                _viewModel.MarkNotificationRead(item);
+            }
+        }
 
-            // If Compact: Expand capsule to Width 340, Height 58 for 3.5 seconds
+        private void OnCompactToastBodyClicked(object sender, MouseButtonEventArgs e)
+        {
+            // Clicking the compact toast opens Notification Center (Slide 3)
+            _toastAutoDismissTimer.Stop();
+            _isShowingCompactToast = false;
+            CompactToastContent.Visibility = Visibility.Collapsed;
+            CompactStandardContent.Visibility = Visibility.Visible;
+            NavigateToSlide(3, immediate: true);
+            ExpandIsland();
+        }
+
+        public void ShowNotificationToast(string appName, string title, string message, string accentHex, bool addToCollection = true)
+        {
+            if (addToCollection)
+            {
+                _viewModel.AddNotification(appName, title, message, accentHex);
+            }
+
+            // If Compact: Expand capsule to Width 350, Height 60 for 3.5 seconds
             if (!_isExpanded)
             {
                 _isShowingCompactToast = true;
@@ -1069,32 +1880,41 @@ namespace WinIsland.App
                 CompactToastMessage.Text = $"{title}: {message}";
                 CompactToastAppInitial.Text = !string.IsNullOrEmpty(appName) ? appName[0].ToString().ToUpper() : "N";
 
-                var accentBrush = (Brush)new BrushConverter().ConvertFromString(accentHex)!;
-                CompactToastBadgeBorder.Background = new SolidColorBrush(Color.FromArgb(40, 48, 209, 88)); // Soft tint
-                CompactToastAppInitial.Foreground = accentBrush;
+                Color parsedAccent;
+                try
+                {
+                    parsedAccent = (Color)ColorConverter.ConvertFromString(accentHex);
+                }
+                catch
+                {
+                    parsedAccent = Color.FromRgb(48, 209, 88);
+                }
+
+                CompactToastBadgeBorder.Background = new SolidColorBrush(Color.FromArgb(45, parsedAccent.R, parsedAccent.G, parsedAccent.B));
+                CompactToastAppInitial.Foreground = new SolidColorBrush(parsedAccent);
 
                 // Set Ambient Glow with accentHex
-                AmbientGlowBorder.Background = new LinearGradientBrush
+                AmbientBottomGlow.Background = new LinearGradientBrush
                 {
-                    StartPoint = new Point(0.5, 1),
-                    EndPoint = new Point(0.5, 0),
+                    StartPoint = new Point(0.5, 0),
+                    EndPoint = new Point(0.5, 1),
                     GradientStops = new GradientStopCollection
                     {
-                        new GradientStop((Color)ColorConverter.ConvertFromString(accentHex), 0.0),
-                        new GradientStop(Color.FromArgb(50, 0, 0, 0), 0.6),
-                        new GradientStop(Colors.Transparent, 1.0)
+                        new GradientStop(Colors.Transparent, 0.0),
+                        new GradientStop(parsedAccent, 1.0)
                     }
                 };
-                AmbientGlowBorder.Visibility = Visibility.Visible;
+                AmbientBottomGlow.Visibility = Visibility.Visible;
+                AmbientBottomGlow.Opacity = 0.85;
 
                 CompactStandardContent.Visibility = Visibility.Collapsed;
                 CompactToastContent.Visibility = Visibility.Visible;
 
-                var widthAnim = new DoubleAnimation(MainIslandBorder.ActualWidth, 340, TimeSpan.FromMilliseconds(220))
+                var widthAnim = new DoubleAnimation(MainIslandBorder.ActualWidth, 350, TimeSpan.FromMilliseconds(220))
                 {
                     EasingFunction = new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut }
                 };
-                var heightAnim = new DoubleAnimation(MainIslandBorder.ActualHeight, 58, TimeSpan.FromMilliseconds(220))
+                var heightAnim = new DoubleAnimation(MainIslandBorder.ActualHeight, 60, TimeSpan.FromMilliseconds(220))
                 {
                     EasingFunction = new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut }
                 };
@@ -1107,23 +1927,29 @@ namespace WinIsland.App
             }
             else
             {
-                // If Expanded: briefly show ambient glow and ping audio
+                ShowHudFeedback($"🔔 {appName}: {title}");
                 try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
             }
         }
 
         private void DismissCompactToast()
         {
-            if (!_isShowingCompactToast || _isExpanded) return;
+            if (!_isShowingCompactToast) return;
 
             _isShowingCompactToast = false;
             _toastAutoDismissTimer.Stop();
 
             CompactToastContent.Visibility = Visibility.Collapsed;
             CompactStandardContent.Visibility = Visibility.Visible;
-            AmbientGlowBorder.Visibility = Visibility.Collapsed;
+            if (!(_isExpanded && _currentSlideIndex == 0 && _isLyricsOpen))
+            {
+                AmbientBottomGlow.Visibility = Visibility.Collapsed;
+            }
 
-            var widthAnim = new DoubleAnimation(MainIslandBorder.ActualWidth, 220, TimeSpan.FromMilliseconds(220))
+            if (_isExpanded) return;
+
+            double compactWidth = _viewModel.IsPomoRunning ? 265.0 : 240.0;
+            var widthAnim = new DoubleAnimation(MainIslandBorder.ActualWidth, compactWidth, TimeSpan.FromMilliseconds(220))
             {
                 EasingFunction = new BackEase { Amplitude = 0.2, EasingMode = EasingMode.EaseOut }
             };
@@ -1138,25 +1964,54 @@ namespace WinIsland.App
 
         private void OnDismissToastClicked(object sender, RoutedEventArgs e)
         {
+            e.Handled = true;
             DismissCompactToast();
         }
 
-        private void OnTestToastClicked(object sender, RoutedEventArgs e)
+        private async void OnTestToastClicked(object sender, RoutedEventArgs e)
         {
-            string[] apps = { "WhatsApp", "Discord", "Pomodoro" };
-            string[] titles = { "Sarah Miller", "Dev Channel", "Focus Session" };
-            string[] messages = { "Hey, check the new Dynamic Island build!", "PR #42 merged into main with 0 errors", "Time for a 5-minute break!" };
-            string[] colors = { "#30D158", "#0A84FF", "#FF3B30" };
+            // Generate a live notification from real system status (Battery / Media / Todo / Pomodoro)
+            string app;
+            string title;
+            string message;
+            string color;
 
-            int choice = _random.Next(apps.Length);
-            ShowNotificationToast(apps[choice], titles[choice], messages[choice], colors[choice]);
+            if (_viewModel.MediaInfo.HasActiveSession && !string.IsNullOrWhiteSpace(_viewModel.MediaInfo.Title) && _viewModel.MediaInfo.Title != "No Media Playing")
+            {
+                app = "Now Playing";
+                title = _viewModel.MediaInfo.Title;
+                message = _viewModel.MediaInfo.Artist;
+                color = "#FF2D55";
+            }
+            else if (_viewModel.FilteredTodoTasks.Count > 0)
+            {
+                var nextTask = _viewModel.FilteredTodoTasks.FirstOrDefault(t => !t.IsCompleted) ?? _viewModel.FilteredTodoTasks[0];
+                app = "TodoList";
+                title = nextTask.Title;
+                message = $"{nextTask.DisplaySchedule} ({_viewModel.TodoProgressText} selesai)";
+                color = "#30D158";
+            }
+            else
+            {
+                app = "System Status";
+                title = $"Battery {_viewModel.BatteryText}";
+                message = $"CPU {_viewModel.CpuText} • RAM {_viewModel.RamText} • Vol {_viewModel.VolumeText}";
+                color = "#0A84FF";
+            }
+
+            _viewModel.AddNotification(app, title, message, color);
+
+            if (_isExpanded)
+            {
+                await CollapseIslandAsync();
+            }
+            ShowNotificationToast(app, title, message, color, addToCollection: false);
         }
 
         private void InitWindowsNotificationListener()
         {
             try
             {
-                // Safe check for Windows UserNotificationListener
                 var listener = Windows.UI.Notifications.Management.UserNotificationListener.Current;
                 if (listener != null)
                 {
@@ -1168,6 +2023,7 @@ namespace WinIsland.App
                             if (status == Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus.Allowed)
                             {
                                 Debug.WriteLine("[UserNotificationListener] Access granted for Windows notifications.");
+                                await Dispatcher.InvokeAsync(StartWindowsNotificationPolling);
                             }
                         }
                         catch (Exception ex)
@@ -1183,59 +2039,249 @@ namespace WinIsland.App
             }
         }
 
-        #endregion
-
-        #region Slide 4: Hydration & Controls
-
-        private void OnHydrationClicked(object sender, MouseButtonEventArgs e)
+        private void StartWindowsNotificationPolling()
         {
-            _viewModel.LogHydrationCommand.Execute(null);
+            _windowsNotifPollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _windowsNotifPollTimer.Tick += async (s, e) => await PollWindowsNotificationsAsync();
+            _windowsNotifPollTimer.Start();
+            _ = PollWindowsNotificationsAsync();
         }
 
-        private void OnCameraMirrorClicked(object sender, RoutedEventArgs e)
+        private async Task PollWindowsNotificationsAsync()
         {
-            // Privacy Camera Mirror: trigger notification preview
-            ShowNotificationToast("Camera", "Privacy Shutter", "Camera mirror active for 10 seconds", "#5AC8FA");
+            try
+            {
+                var listener = Windows.UI.Notifications.Management.UserNotificationListener.Current;
+                if (listener == null) return;
+
+                var notifs = await listener.GetNotificationsAsync(Windows.UI.Notifications.NotificationKinds.Toast);
+                if (notifs == null) return;
+
+                bool isFirstSeed = !_initialNotificationsSeeded;
+                _initialNotificationsSeeded = true;
+
+                foreach (var n in notifs)
+                {
+                    if (!_seenNotificationIds.Add(n.Id)) continue;
+
+                    string appName = "Windows";
+                    try
+                    {
+                        if (n.AppInfo?.DisplayInfo?.DisplayName is { Length: > 0 } dispName)
+                        {
+                            appName = dispName;
+                        }
+                    }
+                    catch { }
+
+                    var binding = n.Notification?.Visual?.GetBinding(Windows.UI.Notifications.KnownNotificationBindings.ToastGeneric);
+                    if (binding != null)
+                    {
+                        var texts = binding.GetTextElements().Select(t => t.Text).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+                        if (texts.Count > 0)
+                        {
+                            string title = texts[0];
+                            string body = texts.Count > 1 ? string.Join(" ", texts.Skip(1)) : title;
+                            if (isFirstSeed)
+                            {
+                                // Populate Notification Center silently with existing real Windows notifications
+                                _viewModel.AddNotification(appName, title, body, "#0A84FF");
+                            }
+                            else
+                            {
+                                ShowNotificationToast(appName, title, body, "#0A84FF");
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
         }
 
         #endregion
 
-        #region Slide 5: File Drop Tray
+        #region Slide 4: File Drop Tray
+
+        private void OnBrowseFilesClicked(object sender, MouseButtonEventArgs e)
+        {
+            BrowseAndAddFiles();
+        }
+
+        private void OnBrowseFilesButtonClicked(object sender, RoutedEventArgs e)
+        {
+            BrowseAndAddFiles();
+        }
+
+        private void BrowseAndAddFiles()
+        {
+            try
+            {
+                _isInlineEditing = true;
+                var dlg = new OpenFileDialog
+                {
+                    Title = "Add Files to WinIsland File Tray",
+                    Multiselect = true
+                };
+                if (dlg.ShowDialog(this) == true && dlg.FileNames.Length > 0)
+                {
+                    FileShelfService.Instance.AddFiles(dlg.FileNames);
+                    UpdateUiStates();
+                    ShowHudFeedback($"📁 +{dlg.FileNames.Length} File(s)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[BrowseAndAddFiles] Error: {ex.Message}");
+            }
+            finally
+            {
+                _isInlineEditing = false;
+            }
+        }
 
         private void OnCopyPngClicked(object sender, RoutedEventArgs e)
         {
-            if (ClipboardService.Instance.History.Count > 0)
+            try
             {
-                var first = ClipboardService.Instance.History[0];
-                ClipboardService.Instance.CopyToClipboard(first);
+                string[] imageExts = { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp" };
+
+                // 1. Check if File Tray has an image file -> Copy image bitmap & file drop to Clipboard
+                var imageItem = FileShelfService.Instance.Items.FirstOrDefault(i =>
+                    !i.IsDirectory && imageExts.Contains(Path.GetExtension(i.FilePath).ToLowerInvariant()) && File.Exists(i.FilePath));
+
+                if (imageItem != null)
+                {
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.UriSource = new Uri(imageItem.FilePath);
+                    bmp.EndInit();
+                    bmp.Freeze();
+
+                    var dataObj = new DataObject();
+                    dataObj.SetImage(bmp);
+                    var dropList = new StringCollection { imageItem.FilePath };
+                    dataObj.SetFileDropList(dropList);
+                    Clipboard.SetDataObject(dataObj, true);
+
+                    ShowHudFeedback("📋 Image Copied!");
+                    return;
+                }
+
+                // 2. If Clipboard currently has a screenshot/image -> Save it as PNG into File Tray!
+                if (Clipboard.ContainsImage())
+                {
+                    var clipImg = Clipboard.GetImage();
+                    if (clipImg != null)
+                    {
+                        string tempFolder = Path.Combine(Path.GetTempPath(), "WinIsland");
+                        Directory.CreateDirectory(tempFolder);
+                        string pngPath = Path.Combine(tempFolder, $"Clipboard_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+
+                        using (var fs = new FileStream(pngPath, FileMode.Create))
+                        {
+                            var encoder = new PngBitmapEncoder();
+                            encoder.Frames.Add(BitmapFrame.Create(clipImg));
+                            encoder.Save(fs);
+                        }
+
+                        FileShelfService.Instance.AddFiles(new[] { pngPath });
+                        UpdateUiStates();
+                        ShowHudFeedback("📋 Saved PNG to Tray!");
+                        return;
+                    }
+                }
+
+                // 3. If File Tray has any files -> Copy all files to Clipboard
+                if (FileShelfService.Instance.Items.Count > 0)
+                {
+                    var dropList = new StringCollection();
+                    foreach (var item in FileShelfService.Instance.Items)
+                    {
+                        if (File.Exists(item.FilePath) || Directory.Exists(item.FilePath))
+                        {
+                            dropList.Add(item.FilePath);
+                        }
+                    }
+                    if (dropList.Count > 0)
+                    {
+                        Clipboard.SetFileDropList(dropList);
+                        ShowHudFeedback($"📋 Copied {dropList.Count} File(s)!");
+                        return;
+                    }
+                }
+
+                // 4. Fallback to Clipboard history
+                if (ClipboardService.Instance.History.Count > 0)
+                {
+                    ClipboardService.Instance.CopyToClipboard(ClipboardService.Instance.History[0]);
+                    ShowHudFeedback("📋 Clipboard Restored!");
+                }
+                else
+                {
+                    ShowHudFeedback("📋 Tray & Clipboard Empty");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[OnCopyPngClicked] Error: {ex.Message}");
             }
         }
 
         private void OnZipFilesClicked(object sender, RoutedEventArgs e)
         {
-            if (FileShelfService.Instance.Items.Count == 0) return;
+            if (FileShelfService.Instance.Items.Count == 0)
+            {
+                ShowHudFeedback("📦 Add files first");
+                return;
+            }
 
             try
             {
                 string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 string zipPath = Path.Combine(desktop, $"WinIsland_Archive_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
 
+                var snapshot = FileShelfService.Instance.Items.ToList();
+                var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
                 {
-                    foreach (var item in FileShelfService.Instance.Items)
+                    foreach (var item in snapshot)
                     {
                         if (File.Exists(item.FilePath))
                         {
-                            archive.CreateEntryFromFile(item.FilePath, item.FileName);
+                            string entryName = item.FileName;
+                            int counter = 1;
+                            while (!usedNames.Add(entryName))
+                            {
+                                entryName = $"{Path.GetFileNameWithoutExtension(item.FileName)}_{counter++}{Path.GetExtension(item.FileName)}";
+                            }
+                            archive.CreateEntryFromFile(item.FilePath, entryName);
+                        }
+                        else if (Directory.Exists(item.FilePath))
+                        {
+                            string baseDir = Path.GetDirectoryName(item.FilePath) ?? item.FilePath;
+                            foreach (var file in Directory.EnumerateFiles(item.FilePath, "*", SearchOption.AllDirectories))
+                            {
+                                string relPath = Path.GetRelativePath(baseDir, file);
+                                if (usedNames.Add(relPath))
+                                {
+                                    archive.CreateEntryFromFile(file, relPath);
+                                }
+                            }
                         }
                     }
                 }
 
-                ShowNotificationToast("File Shelf", "ZIP Archive Created", Path.GetFileName(zipPath), "#FF9F0A");
+                FileShelfService.Instance.AddFiles(new[] { zipPath });
+                UpdateUiStates();
+                ShowHudFeedback("📦 ZIP Saved to Desktop!");
+                ShowNotificationToast("File Tray", "ZIP Archive Created", Path.GetFileName(zipPath), "#BF5AF2");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[OnZipFilesClicked] Error: {ex.Message}");
+                ShowHudFeedback("⚠️ ZIP Failed");
             }
         }
 
@@ -1251,68 +2297,72 @@ namespace WinIsland.App
                                   _viewModel.MediaInfo.Title != "No Media Playing";
             bool isPlaying = hasActiveMedia && _viewModel.MediaInfo.IsPlaying;
 
+            // Keep playback buttons enabled so user can always wake/control media via SMTC or media keys
+            PrevMediaBtn.Opacity = hasActiveMedia ? 1.0 : 0.65;
+            PrevMediaBtn.IsEnabled = true;
+            PlayPauseMediaBtn.Opacity = hasActiveMedia ? 1.0 : 0.65;
+            PlayPauseMediaBtn.IsEnabled = true;
+            NextMediaBtn.Opacity = hasActiveMedia ? 1.0 : 0.65;
+            NextMediaBtn.IsEnabled = true;
+
             if (!hasActiveMedia)
             {
                 CompactVisualizer.Visibility = Visibility.Collapsed;
-                MediaProgressBar.Visibility = Visibility.Collapsed;
                 TxtCurrentTime.Text = "00:00";
                 TxtRemainingTime.Text = "-00:00";
                 ScrubberFill.Width = 0;
                 ExpandedVisualizer.Visibility = Visibility.Collapsed;
-                NoMediaPlaceholder.Visibility = Visibility.Visible;
-                ActiveMediaDetails.Visibility = Visibility.Collapsed;
+                SetPlayButtonGlyph(isPlaying: false);
+                AlbumArtBorder.Opacity = 0.6;
 
-                BtnPrevTrack.Opacity = 0.3;
-                BtnPrevTrack.IsEnabled = false;
-                BtnPlayPause.Opacity = 0.3;
-                BtnPlayPause.IsEnabled = false;
-                BtnNextTrack.Opacity = 0.3;
-                BtnNextTrack.IsEnabled = false;
-                AlbumArtBorder.Opacity = 0.5;
-
-                AmbientGlowBorder.Visibility = Visibility.Collapsed;
+                if (!_isLyricsOpen && !_isShowingCompactToast)
+                {
+                    AmbientBottomGlow.Visibility = Visibility.Collapsed;
+                }
             }
             else if (!isPlaying)
             {
                 CompactVisualizer.Visibility = Visibility.Visible;
                 ExpandedVisualizer.Visibility = Visibility.Visible;
-                MediaProgressBar.Visibility = Visibility.Visible;
-                NoMediaPlaceholder.Visibility = Visibility.Collapsed;
-                ActiveMediaDetails.Visibility = Visibility.Visible;
 
                 SetVisualizerBarsStatic();
                 SetPlayButtonGlyph(isPlaying: false);
-                AlbumArtBorder.Opacity = 0.75;
+                AlbumArtBorder.Opacity = 0.8;
 
-                BtnPrevTrack.Opacity = 1.0;
-                BtnPrevTrack.IsEnabled = true;
-                BtnPlayPause.Opacity = 1.0;
-                BtnPlayPause.IsEnabled = true;
-                BtnNextTrack.Opacity = 1.0;
-                BtnNextTrack.IsEnabled = true;
-
-                AmbientGlowBorder.Visibility = Visibility.Collapsed;
+                if (!_isLyricsOpen && !_isShowingCompactToast)
+                {
+                    AmbientBottomGlow.Visibility = Visibility.Collapsed;
+                }
             }
             else
             {
                 CompactVisualizer.Visibility = Visibility.Visible;
                 ExpandedVisualizer.Visibility = Visibility.Visible;
-                MediaProgressBar.Visibility = Visibility.Visible;
-                NoMediaPlaceholder.Visibility = Visibility.Collapsed;
-                ActiveMediaDetails.Visibility = Visibility.Visible;
 
                 SetPlayButtonGlyph(isPlaying: true);
                 AlbumArtBorder.Opacity = 1.0;
 
-                BtnPrevTrack.Opacity = 1.0;
-                BtnPrevTrack.IsEnabled = true;
-                BtnPlayPause.Opacity = 1.0;
-                BtnPlayPause.IsEnabled = true;
-                BtnNextTrack.Opacity = 1.0;
-                BtnNextTrack.IsEnabled = true;
-
                 // Ambient glow when lyrics open and music is playing
-                AmbientGlowBorder.Visibility = _isLyricsOpen && _currentSlideIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
+                if (_isLyricsOpen && _currentSlideIndex == 0)
+                {
+                    AmbientBottomGlow.Visibility = Visibility.Visible;
+                    AmbientBottomGlow.Opacity = 1.0;
+                }
+            }
+
+            // 1B. Volume / Mute Icon Status
+            if (VolumeIconPath != null)
+            {
+                if (_viewModel.IsMuted)
+                {
+                    VolumeIconPath.Stroke = (Brush)new BrushConverter().ConvertFromString("#FF453A")!;
+                    VolumeIconPath.Data = Geometry.Parse("M 1,4 H 3.5 L 7,1 V 11 L 3.5,8 H 1 Z M 9,4 L 12,8 M 12,4 L 9,8");
+                }
+                else
+                {
+                    VolumeIconPath.Stroke = (Brush)new BrushConverter().ConvertFromString("#8E8E93")!;
+                    VolumeIconPath.Data = Geometry.Parse("M 1,4 H 3.5 L 7,1 V 11 L 3.5,8 H 1 Z M 9,3.5 C 10.5,5 10.5,7 9,8.5");
+                }
             }
 
             // 2. Battery Status
@@ -1350,7 +2400,7 @@ namespace WinIsland.App
             int filesCount = FileShelfService.Instance.Items.Count;
             if (filesCount == 0)
             {
-                EmptyFilesText.Text = "Drop files here to hold";
+                EmptyFilesText.Text = "Drop files here to hold (or click to browse)";
                 EmptyFilesView.Visibility = Visibility.Visible;
                 FilesListScrollViewer.Visibility = Visibility.Collapsed;
             }
@@ -1413,21 +2463,7 @@ namespace WinIsland.App
 
         #endregion
 
-        #region Visualizers & Pet Animation
-
-        private void StartPetWalkingAnimation()
-        {
-            var walkAnim = new DoubleAnimation
-            {
-                From = 0,
-                To = 390,
-                Duration = TimeSpan.FromSeconds(10),
-                AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever,
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
-            };
-            PetWalkTransform.BeginAnimation(TranslateTransform.XProperty, walkAnim);
-        }
+        #region Visualizers
 
         private void OnVisualizerTick(object? sender, EventArgs e)
         {
@@ -1611,52 +2647,42 @@ namespace WinIsland.App
 
         #endregion
 
-        #region Minimalist Volume & Brightness Controls
-
-        private void InitBrightnessAndVolume()
-        {
-            float vol = AudioHudService.Instance.CurrentVolume;
-            if (VolumeSlider != null) VolumeSlider.Value = vol * 100;
-            if (TxtVolumePercent != null) TxtVolumePercent.Text = $"{(int)(vol * 100)}%";
-
-            int br = BrightnessService.Instance.CurrentBrightness;
-            if (BrightnessSlider != null) BrightnessSlider.Value = br;
-            if (TxtBrightnessPercent != null) TxtBrightnessPercent.Text = $"{br}%";
-        }
-
-        private void OnVolumeSliderValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (TxtVolumePercent != null)
-            {
-                int val = (int)e.NewValue;
-                TxtVolumePercent.Text = $"{val}%";
-                AudioHudService.Instance.SetVolume(val / 100.0f);
-            }
-        }
-
-        private void OnBrightnessSliderValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            int val = (int)e.NewValue;
-            if (TxtBrightnessPercent != null) TxtBrightnessPercent.Text = $"{val}%";
-            BrightnessService.Instance.SetBrightness(val);
-        }
+        #region Minimalist Volume & Brightness Controls via MouseWheel
 
         private void OnMainIslandMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            if (e.Handled) return;
+
+            // If on Pomodoro slide, let wheel adjust Pomodoro minutes
+            if (_isExpanded && _currentSlideIndex == 1)
+            {
+                OnPomodoroTimeMouseWheel(sender, e);
+                return;
+            }
+
+            // If inside a ScrollViewer on Todo, Notifications, or File Tray slides, allow list scrolling unless Ctrl/Alt held
+            if (_isExpanded && (_currentSlideIndex == 2 || _currentSlideIndex == 3 || _currentSlideIndex == 4) &&
+                !Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                return;
+            }
+
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
             {
                 // Shift + Wheel -> Brightness
-                double delta = e.Delta > 0 ? 5 : -5;
-                int newBr = Math.Clamp(BrightnessService.Instance.CurrentBrightness + (int)delta, 0, 100);
+                int delta = e.Delta > 0 ? 5 : -5;
+                int newBr = Math.Clamp(BrightnessService.Instance.CurrentBrightness + delta, 0, 100);
                 BrightnessService.Instance.SetBrightness(newBr);
-                if (BrightnessSlider != null) BrightnessSlider.Value = newBr;
-                if (TxtBrightnessPercent != null) TxtBrightnessPercent.Text = $"{newBr}%";
+                ShowHudFeedback($"☀️ {newBr}%");
             }
             else
             {
                 // Wheel -> Volume
                 float delta = e.Delta > 0 ? 0.02f : -0.02f;
                 AudioHudService.Instance.ChangeVolume(delta);
+                int newVol = (int)Math.Round(AudioHudService.Instance.CurrentVolume * 100);
+                ShowHudFeedback($"🔊 {newVol}%");
+                UpdateUiStates();
             }
             e.Handled = true;
         }
@@ -1671,7 +2697,7 @@ namespace WinIsland.App
             {
                 _isDraggingFile = true;
                 e.Effects = DragDropEffects.Copy;
-                NavigateToSlide(5);
+                NavigateToSlide(4);
                 ExpandIsland();
             }
             e.Handled = true;
@@ -1691,9 +2717,10 @@ namespace WinIsland.App
                 if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 {
                     FileShelfService.Instance.AddFiles(files);
-                    NavigateToSlide(5);
+                    NavigateToSlide(4);
                     ExpandIsland();
                     UpdateUiStates();
+                    ShowHudFeedback($"📁 +{files.Length} File(s)");
                 }
             }
             e.Handled = true;
@@ -1737,6 +2764,7 @@ namespace WinIsland.App
         {
             _viewModel.ClearFilesCommand.Execute(null);
             UpdateUiStates();
+            ShowHudFeedback("🗑️ Tray Cleared");
         }
 
         #endregion
@@ -1773,6 +2801,8 @@ namespace WinIsland.App
             _ghostModeTimer.Stop();
             _rightClickHoldTimer.Stop();
             _toastAutoDismissTimer.Stop();
+            _hudFeedbackTimer.Stop();
+            _windowsNotifPollTimer?.Stop();
             _trayService?.Dispose();
             _viewModel.HoverController.Dispose();
             AudioHudService.Instance.Dispose();

@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -54,10 +56,14 @@ namespace WinIsland.App.ViewModels
 
     public class MainIslandViewModel : INotifyPropertyChanged
     {
+        private readonly string _todosFilePath;
+        private readonly string _notificationsFilePath;
+
         public SpringAnimator Animator { get; }
         public HoverIntentController HoverController { get; }
 
         public event Action<string, string, string, string>? NotificationRequested;
+        public event Action? TodoTasksUpdated;
 
         private IslandState _currentState = IslandState.Compact;
         public IslandState CurrentState
@@ -126,30 +132,82 @@ namespace WinIsland.App.ViewModels
             }
         }
 
-        // Media Info
+        // Media Info & Synced Lyrics
         private MediaTrackInfo _mediaInfo = new();
+        private string _lyricsKey = string.Empty;
+        private bool _lyricsLoadedWithZeroDuration;
+
         public MediaTrackInfo MediaInfo
         {
             get => _mediaInfo;
-            set { _mediaInfo = value; OnPropertyChanged(); }
+            set
+            {
+                _mediaInfo = value;
+                OnPropertyChanged();
+                _ = LoadLyricsForTrackAsync(value);
+            }
         }
 
-        // Live Synced Lyrics
-        private readonly List<LyricLine> _lyrics = new()
-        {
-            new(TimeSpan.FromSeconds(0), "(Instrumental Intro)"),
-            new(TimeSpan.FromSeconds(12), "Midnight city, windows glowing bright"),
-            new(TimeSpan.FromSeconds(26), "Speed of sound beneath the neon light"),
-            new(TimeSpan.FromSeconds(45), "Caught inside the harmony we know"),
-            new(TimeSpan.FromSeconds(65), "Watching every shadow gently flow"),
-            new(TimeSpan.FromSeconds(88), "Let the music carry all the weight"),
-            new(TimeSpan.FromSeconds(112), "In the heartbeat where the visions wait"),
-            new(TimeSpan.FromSeconds(138), "Echoes fading through the silent air"),
-            new(TimeSpan.FromSeconds(165), "Found the rhythm waiting everywhere"),
-            new(TimeSpan.FromSeconds(190), "And time just slips away into the groove...")
-        };
+        public Task EnsureLyricsLoadedAsync() => LoadLyricsForTrackAsync(_mediaInfo);
 
-        private string _activeLyricLine = "Midnight city, windows glowing bright";
+        private async Task LoadLyricsForTrackAsync(MediaTrackInfo track)
+        {
+            if (!track.HasActiveSession || string.IsNullOrWhiteSpace(track.Title) || track.Title == "No Media Playing")
+            {
+                _lyricsKey = string.Empty;
+                await (Application.Current?.Dispatcher?.InvokeAsync(() =>
+                {
+                    _lyrics.Clear();
+                    ActiveLyricLine = "Belum ada musik diputar";
+                    NextLyricLine = "Putar lagu untuk menampilkan lirik otomatis";
+                    LaterLyricLine = string.Empty;
+                }).Task ?? Task.CompletedTask);
+                return;
+            }
+
+            string key = $"{track.Title.Trim()}|{track.Artist.Trim()}";
+            bool retryWithDuration = key == _lyricsKey && _lyricsLoadedWithZeroDuration && track.Duration > TimeSpan.Zero;
+
+            if (key == _lyricsKey && !retryWithDuration && _lyrics.Count > 0) return;
+            _lyricsKey = key;
+            _lyricsLoadedWithZeroDuration = track.Duration <= TimeSpan.Zero;
+
+            await (Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                ActiveLyricLine = "⏳ Memuat lirik...";
+                NextLyricLine = $"{track.Title} • {track.Artist}";
+                LaterLyricLine = string.Empty;
+            }).Task ?? Task.CompletedTask);
+
+            var lines = await LyricsService.FetchAsync(track.Title, track.Artist, track.Duration);
+            if (key != _lyricsKey) return;
+
+            await (Application.Current?.Dispatcher?.InvokeAsync(() =>
+            {
+                if (lines is { Count: > 0 })
+                {
+                    _lyrics = lines;
+                    var (pos, _, _) = MediaControlService.Instance.GetCurrentProgress();
+                    UpdateLyricsForPosition(pos);
+                }
+                else
+                {
+                    _lyrics = new List<LyricLine>
+                    {
+                        new(TimeSpan.Zero, $"♪ {track.Title}"),
+                        new(TimeSpan.FromSeconds(5), "Lirik tersinkronisasi belum tersedia untuk lagu ini")
+                    };
+                    ActiveLyricLine = _lyrics[0].Text;
+                    NextLyricLine = _lyrics[1].Text;
+                    LaterLyricLine = string.Empty;
+                }
+            }).Task ?? Task.CompletedTask);
+        }
+
+        // Live Synced Lyrics (dynamic — populated from active media session)
+        private List<LyricLine> _lyrics = new();
+
+        private string _activeLyricLine = "Belum ada musik diputar";
         public string ActiveLyricLine
         {
             get => _activeLyricLine;
@@ -161,7 +219,7 @@ namespace WinIsland.App.ViewModels
             }
         }
 
-        private string _nextLyricLine = "Speed of sound beneath the neon light";
+        private string _nextLyricLine = "Putar lagu untuk menampilkan lirik otomatis";
         public string NextLyricLine
         {
             get => _nextLyricLine;
@@ -173,7 +231,7 @@ namespace WinIsland.App.ViewModels
             }
         }
 
-        private string _laterLyricLine = "Caught inside the harmony we know";
+        private string _laterLyricLine = string.Empty;
         public string LaterLyricLine
         {
             get => _laterLyricLine;
@@ -219,7 +277,7 @@ namespace WinIsland.App.ViewModels
                 OnPropertyChanged(nameof(VolumeText));
             }
         }
-        public string VolumeText => $"{(int)(VolumePercent * 100)}%";
+        public string VolumeText => $"{(int)Math.Round(VolumePercent * 100)}%";
 
         private bool _isMuted;
         public bool IsMuted
@@ -277,11 +335,15 @@ namespace WinIsland.App.ViewModels
 
         public string PomoTimeRemaining => $"{_pomoSecondsRemaining / 60:D2}:{_pomoSecondsRemaining % 60:D2}";
 
-        public double PomodoroProgressFraction => Math.Clamp(1.0 - (double)_pomoSecondsRemaining / Math.Max(1, _pomoTotalSeconds), 0.0, 1.0);
+        /// <summary>
+        /// Remaining fraction (1.0 at full time -> 0.0 when finished) so the circular ring starts full and drains smoothly.
+        /// </summary>
+        public double PomodoroProgressFraction => Math.Clamp((double)_pomoSecondsRemaining / Math.Max(1, _pomoTotalSeconds), 0.0, 1.0);
 
         public void SetPomoDuration(int minutes, bool isFocus = true)
         {
-            _pomoTotalSeconds = Math.Max(1, minutes * 60);
+            minutes = Math.Clamp(minutes, 1, 180);
+            _pomoTotalSeconds = minutes * 60;
             _pomoSecondsRemaining = _pomoTotalSeconds;
             PomoModeName = isFocus ? "Focus time" : "Short Break";
             IsPomoRunning = false;
@@ -292,46 +354,224 @@ namespace WinIsland.App.ViewModels
 
         public void AdjustPomoMinutes(int deltaMinutes)
         {
-            int currentMinutes = _pomoSecondsRemaining / 60;
-            int newMinutes = Math.Clamp(currentMinutes + deltaMinutes, 1, 120);
+            int currentMinutes = (int)Math.Ceiling(_pomoSecondsRemaining / 60.0);
+            int newMinutes = Math.Clamp(currentMinutes + deltaMinutes, 1, 180);
             SetPomoDuration(newMinutes, PomoModeName == "Focus time");
         }
 
-        // TodoList & Timeline
-        public ObservableCollection<TodoTaskItem> TodoTasks { get; } = new()
+        // TodoList & Timeline (with JSON Persistence & Per-Date Filtering)
+        public ObservableCollection<TodoTaskItem> TodoTasks { get; } = new();
+        public ObservableCollection<TodoTaskItem> FilteredTodoTasks { get; } = new();
+
+        private DateTime _selectedTaskDate = DateTime.Today;
+        public DateTime SelectedTaskDate
         {
-            new TodoTaskItem { Title = "Morning Standup & Sync", TimeRange = "07:00-08:00", StartHour = 7.0, DurationHours = 1.0, CategoryColor = "#30D158", IsCompleted = true },
-            new TodoTaskItem { Title = "Code Review & PR Merge", TimeRange = "10:30-11:15", StartHour = 10.5, DurationHours = 0.75, CategoryColor = "#0A84FF", IsCompleted = false },
-            new TodoTaskItem { Title = "Lunch & Wellness Walk", TimeRange = "12:06-12:07", StartHour = 12.1, DurationHours = 0.5, CategoryColor = "#FF9F0A", IsCompleted = false },
-            new TodoTaskItem { Title = "WPF Dynamic Island Polish", TimeRange = "14:00-16:00", StartHour = 14.0, DurationHours = 2.0, CategoryColor = "#BF5AF2", IsCompleted = false }
-        };
+            get => _selectedTaskDate.Date;
+            set
+            {
+                var normalized = (value == default ? DateTime.Today : value).Date;
+                if (_selectedTaskDate.Date == normalized) return;
+                _selectedTaskDate = normalized;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TodoDateSubtitleText));
+                SyncFilteredTodoTasks();
+            }
+        }
+
+        public string TodoDateSubtitleText => _selectedTaskDate.Date == DateTime.Today
+            ? "Task Done Today"
+            : $"Tasks • {_selectedTaskDate:dd MMM yyyy}";
 
         public string TodoProgressText
         {
             get
             {
-                int completed = TodoTasks.Count(t => t.IsCompleted);
-                int total = TodoTasks.Count;
+                int completed = FilteredTodoTasks.Count(t => t.IsCompleted);
+                int total = FilteredTodoTasks.Count;
                 return $"{completed}/{total}";
             }
         }
 
-        public void RefreshTodoProgress()
+        public bool HasNoTasksForSelectedDate => FilteredTodoTasks.Count == 0;
+
+        public bool HasTasksOnDate(DateTime date) => TodoTasks.Any(t => t.TaskDate.Date == date.Date);
+
+        public void SyncFilteredTodoTasks()
         {
+            FilteredTodoTasks.Clear();
+            foreach (var t in TodoTasks.Where(x => x.TaskDate.Date == _selectedTaskDate.Date).OrderBy(x => x.StartHour))
+            {
+                FilteredTodoTasks.Add(t);
+            }
             OnPropertyChanged(nameof(TodoProgressText));
+            OnPropertyChanged(nameof(HasNoTasksForSelectedDate));
+            OnPropertyChanged(nameof(TodoDateSubtitleText));
+            TodoTasksUpdated?.Invoke();
         }
 
-        // Notification Center
-        public ObservableCollection<NotificationItem> Notifications { get; } = new()
+        public void RefreshTodoProgress()
         {
-            new NotificationItem { AppName = "WhatsApp", Title = "Sarah Miller", Message = "Hey! Did you check the new Dynamic Island update?", AccentHex = "#30D158", Timestamp = DateTime.Now.AddMinutes(-2), IsRead = false },
-            new NotificationItem { AppName = "Discord", Title = "Dev Channel", Message = "PR #42 merged into main with 0 build errors", AccentHex = "#5865F2", Timestamp = DateTime.Now.AddMinutes(-8), IsRead = false },
-            new NotificationItem { AppName = "Pomodoro", Title = "Focus Session", Message = "Time for a 5-minute coffee break! Great work.", AccentHex = "#FF3B30", Timestamp = DateTime.Now.AddMinutes(-26), IsRead = false },
-            new NotificationItem { AppName = "Telegram", Title = "Design Team", Message = "New macOS Figma tokens uploaded for review", AccentHex = "#2AABEE", Timestamp = DateTime.Now.AddHours(-1), IsRead = true }
-        };
+            SaveTodos();
+            SyncFilteredTodoTasks();
+        }
+
+        public void AddCustomTask(string title, DateTime taskDate, string timeRange, string categoryColor = "#30D158")
+        {
+            if (string.IsNullOrWhiteSpace(title)) return;
+            if (string.IsNullOrWhiteSpace(timeRange))
+            {
+                timeRange = $"{DateTime.Now:HH:mm}-{DateTime.Now.AddHours(1):HH:mm}";
+            }
+
+            var normalizedDate = (taskDate == default ? DateTime.Today : taskDate).Date;
+            var task = new TodoTaskItem
+            {
+                Title = title.Trim(),
+                TaskDate = normalizedDate,
+                StartHour = DateTime.Now.Hour + DateTime.Now.Minute / 60.0,
+                DurationHours = 1.0,
+                TimeRange = timeRange.Trim(),
+                CategoryColor = categoryColor,
+                IsCompleted = false
+            };
+            TodoTasks.Add(task);
+            _selectedTaskDate = normalizedDate;
+            OnPropertyChanged(nameof(SelectedTaskDate));
+            RefreshTodoProgress();
+        }
+
+        public void UpdateTask(TodoTaskItem task, string title, DateTime taskDate, string timeRange, string categoryColor)
+        {
+            if (task == null || string.IsNullOrWhiteSpace(title)) return;
+            var normalizedDate = (taskDate == default ? DateTime.Today : taskDate).Date;
+            task.Title = title.Trim();
+            task.TaskDate = normalizedDate;
+            if (!string.IsNullOrWhiteSpace(timeRange))
+            {
+                task.TimeRange = timeRange.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(categoryColor))
+            {
+                task.CategoryColor = categoryColor;
+            }
+            _selectedTaskDate = normalizedDate;
+            OnPropertyChanged(nameof(SelectedTaskDate));
+            RefreshTodoProgress();
+        }
+
+        public void DeleteTask(TodoTaskItem task)
+        {
+            if (task != null && TodoTasks.Remove(task))
+            {
+                RefreshTodoProgress();
+            }
+        }
+
+        private void LoadTodos()
+        {
+            try
+            {
+                if (File.Exists(_todosFilePath))
+                {
+                    string json = File.ReadAllText(_todosFilePath);
+                    var items = JsonSerializer.Deserialize<List<TodoTaskItem>>(json);
+                    if (items != null)
+                    {
+                        var legacyFakeTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            "Morning Standup & Sync",
+                            "Code Review & PR Merge",
+                            "Lunch & Wellness Walk",
+                            "WPF Dynamic Island Polish"
+                        };
+
+                        TodoTasks.Clear();
+                        foreach (var item in items)
+                        {
+                            if (legacyFakeTitles.Contains(item.Title)) continue;
+                            if (item.TaskDate == default)
+                            {
+                                item.TaskDate = DateTime.Today;
+                            }
+                            // Re-trigger TimeRange normalization (e.g. "08:00-17.00" -> "08:00-17:00")
+                            item.TimeRange = item.TimeRange;
+                            TodoTasks.Add(item);
+                        }
+                        SaveTodos();
+                        SyncFilteredTodoTasks();
+                        return;
+                    }
+                }
+            }
+            catch { }
+
+            TodoTasks.Clear();
+            SyncFilteredTodoTasks();
+        }
+
+        public void SaveTodos()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(TodoTasks.ToList(), new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(_todosFilePath, json);
+            }
+            catch { }
+        }
+
+        // Notification Center (Dynamic & Persisted — No Hardcoded Fake Items)
+        public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
         public int UnreadNotificationCount => Notifications.Count(n => !n.IsRead);
         public bool HasUnreadNotifications => UnreadNotificationCount > 0;
+        public bool HasNoNotifications => Notifications.Count == 0;
+
+        private void LoadNotifications()
+        {
+            try
+            {
+                if (File.Exists(_notificationsFilePath))
+                {
+                    string json = File.ReadAllText(_notificationsFilePath);
+                    var items = JsonSerializer.Deserialize<List<NotificationItem>>(json);
+                    if (items != null)
+                    {
+                        Notifications.Clear();
+                        foreach (var item in items)
+                        {
+                            Notifications.Add(item);
+                        }
+                        NotifyNotificationCountChanged();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void SaveNotifications()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(Notifications.ToList(), new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(_notificationsFilePath, json);
+            }
+            catch { }
+        }
+
+        private void NotifyNotificationCountChanged()
+        {
+            OnPropertyChanged(nameof(UnreadNotificationCount));
+            OnPropertyChanged(nameof(HasUnreadNotifications));
+            OnPropertyChanged(nameof(HasNoNotifications));
+        }
+
+        public void MarkNotificationRead(NotificationItem item)
+        {
+            if (item == null || item.IsRead) return;
+            item.IsRead = true;
+            SaveNotifications();
+            NotifyNotificationCountChanged();
+        }
 
         public void AddNotification(string appName, string title, string message, string accentHex)
         {
@@ -345,8 +585,12 @@ namespace WinIsland.App.ViewModels
                 IsRead = false
             };
             Notifications.Insert(0, item);
-            OnPropertyChanged(nameof(UnreadNotificationCount));
-            OnPropertyChanged(nameof(HasUnreadNotifications));
+            while (Notifications.Count > 30)
+            {
+                Notifications.RemoveAt(Notifications.Count - 1);
+            }
+            SaveNotifications();
+            NotifyNotificationCountChanged();
         }
 
         public void ReadAllNotifications()
@@ -355,8 +599,8 @@ namespace WinIsland.App.ViewModels
             {
                 n.IsRead = true;
             }
-            OnPropertyChanged(nameof(UnreadNotificationCount));
-            OnPropertyChanged(nameof(HasUnreadNotifications));
+            SaveNotifications();
+            NotifyNotificationCountChanged();
         }
 
         public void DismissNotification(NotificationItem item)
@@ -364,8 +608,8 @@ namespace WinIsland.App.ViewModels
             if (Notifications.Contains(item))
             {
                 Notifications.Remove(item);
-                OnPropertyChanged(nameof(UnreadNotificationCount));
-                OnPropertyChanged(nameof(HasUnreadNotifications));
+                SaveNotifications();
+                NotifyNotificationCountChanged();
             }
         }
 
@@ -424,12 +668,24 @@ namespace WinIsland.App.ViewModels
         public ICommand CollapseCommand { get; }
         public ICommand ToggleTaskCommand { get; }
         public ICommand AddTaskCommand { get; }
+        public ICommand DeleteTaskCommand { get; }
         public ICommand ReadAllNotificationsCommand { get; }
         public ICommand DismissNotificationCommand { get; }
         public ICommand LogHydrationCommand { get; }
 
         public MainIslandViewModel()
         {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string folder = Path.Combine(appData, "WinIsland");
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+            _todosFilePath = Path.Combine(folder, "todos.json");
+            _notificationsFilePath = Path.Combine(folder, "notifications.json");
+            LoadTodos();
+            LoadNotifications();
+
             Animator = new SpringAnimator(220, 38, 22, 1.0, 0);
             Animator.Updated += _ =>
             {
@@ -518,17 +774,17 @@ namespace WinIsland.App.ViewModels
 
             AddTaskCommand = new RelayCommand(() =>
             {
-                var newTask = new TodoTaskItem
+                string[] colors = { "#30D158", "#0A84FF", "#FF9F0A", "#BF5AF2", "#FF2D55" };
+                string color = colors[TodoTasks.Count % colors.Length];
+                AddCustomTask($"Task #{TodoTasks.Count + 1}", SelectedTaskDate, $"{DateTime.Now:HH:mm}-{DateTime.Now.AddHours(1):HH:mm}", color);
+            });
+
+            DeleteTaskCommand = new RelayCommand(param =>
+            {
+                if (param is TodoTaskItem task)
                 {
-                    Title = $"New Focus Task #{TodoTasks.Count + 1}",
-                    TimeRange = $"{DateTime.Now:HH:mm}-{DateTime.Now.AddHours(1):HH:mm}",
-                    StartHour = DateTime.Now.Hour + DateTime.Now.Minute / 60.0,
-                    DurationHours = 1.0,
-                    CategoryColor = "#30D158",
-                    IsCompleted = false
-                };
-                TodoTasks.Add(newTask);
-                RefreshTodoProgress();
+                    DeleteTask(task);
+                }
             });
 
             ReadAllNotificationsCommand = new RelayCommand(ReadAllNotifications);
@@ -600,6 +856,7 @@ namespace WinIsland.App.ViewModels
                 {
                     _pomoTimer.Stop();
                     IsPomoRunning = false;
+                    OnPropertyChanged(nameof(PomodoroProgressFraction));
                     try { System.Media.SystemSounds.Beep.Play(); } catch { }
                     NotificationRequested?.Invoke("Pomodoro", "Session Finished", $"{PomoModeName} has ended! Great focus.", "#FF3B30");
                 }
@@ -609,7 +866,7 @@ namespace WinIsland.App.ViewModels
         public void ExpandToDefault()
         {
             CurrentState = IslandState.Expanded;
-            Animator.AnimateTo(450, 215, 28, 1.0, 0);
+            Animator.AnimateTo(460, 215, 30, 1.0, 0);
         }
 
         public void CollapseToCompact()
@@ -638,9 +895,15 @@ namespace WinIsland.App.ViewModels
             }
             else
             {
+                if (_pomoSecondsRemaining <= 0)
+                {
+                    _pomoSecondsRemaining = _pomoTotalSeconds;
+                }
                 _pomoTimer?.Start();
                 IsPomoRunning = true;
             }
+            OnPropertyChanged(nameof(PomoTimeRemaining));
+            OnPropertyChanged(nameof(PomodoroProgressFraction));
         }
 
         private void ResetPomodoro()

@@ -28,6 +28,11 @@ namespace WinIsland.App.Core
 
         public const int VK_RBUTTON = 0x02;
         public const int VK_CONTROL = 0x11;
+        public const byte VK_MEDIA_NEXT_TRACK = 0xB0;
+        public const byte VK_MEDIA_PREV_TRACK = 0xB1;
+        public const byte VK_MEDIA_PLAY_PAUSE = 0xB3;
+        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
 
         public const uint MONITOR_DEFAULTTONULL = 0;
         public const uint MONITOR_DEFAULTTOPRIMARY = 1;
@@ -88,6 +93,13 @@ namespace WinIsland.App.Core
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
         [DllImport("user32.dll")]
         public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
@@ -200,6 +212,40 @@ namespace WinIsland.App.Core
 
             // Ensure window stays topmost
             SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        }
+
+        /// <summary>
+        /// Temporarily enables or disables keyboard activation on the overlay window (for inline TextBox editing).
+        /// </summary>
+        public static void SetAllowActivate(Window window, bool allowActivate)
+        {
+            var helper = new WindowInteropHelper(window);
+            IntPtr hwnd = helper.Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            long style = GetWindowLong(hwnd, GWL_EXSTYLE).ToInt64();
+            if (allowActivate)
+            {
+                style &= ~WS_EX_NOACTIVATE;
+                SetWindowLong(hwnd, GWL_EXSTYLE, new IntPtr(style));
+                SetForegroundWindow(hwnd);
+                window.Activate();
+            }
+            else
+            {
+                style |= WS_EX_NOACTIVATE;
+                SetWindowLong(hwnd, GWL_EXSTYLE, new IntPtr(style));
+            }
+        }
+
+        public static void SendMediaKey(byte vk)
+        {
+            try
+            {
+                keybd_event(vk, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
+                keybd_event(vk, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, UIntPtr.Zero);
+            }
+            catch { }
         }
 
         /// <summary>
